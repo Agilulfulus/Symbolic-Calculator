@@ -2,8 +2,8 @@ CC=g++
 
 all: Calculator.exe TokenTesting.exe
 
-Calculator.exe: Tokenizer.o Expression.o Formula.o Scope.o Main.o
-	${CC} -g -std=gnu++11 Tokenizer.o Expression.o Formula.o Scope.o Main.o -o Calculator.exe
+Calculator.exe: Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o
+	${CC} -g -std=gnu++11 Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o -o Calculator.exe
 
 Main.o: Main.cpp
 	${CC} -c -std=gnu++11 Main.cpp
@@ -20,5 +20,8 @@ Expression.o: Expression/Expression.cpp Expression/Expression.h
 Scope.o: Expression/Scope.cpp Expression/Expression.h
 	${CC} -c -std=gnu++11 Expression/Scope.cpp
 
-Formula.o: Expression/Formula.cpp
+Formula.o: Expression/Formula.cpp Expression/Expression.h
 	${CC} -c -std=gnu++11 Expression/Formula.cpp
+
+Lambda.o: Expression/Lambda.cpp Expression/Expression.h
+	${CC} -c -std=gnu++11 Expression/Lambda.cpp

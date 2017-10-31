@@ -10,6 +10,7 @@
 
 struct Expression;
 struct Scope;
+struct Lambda;
 
 enum Type {
 	INTEGER,
@@ -36,6 +37,7 @@ enum Type {
 	EXTERNAL,
 	ITERATOR,
 	DO_LOOP,
+	LAMBDA_INIT,
 
 //MARKERS
 	P_MARKER,
@@ -66,6 +68,14 @@ struct Scope{
 	std::map<std::string, Expression *> variables;
 	Scope(Scope * parent);
 	Expression *& getVariable(std::string key);
+};
+
+struct Lambda {
+	Expression * exp;
+	Scope * parent;
+	std::vector<std::string> arg_names;
+	Lambda(std::vector<std::string> arg_names, Scope * parent);
+	Expression * evaluate(std::vector<Expression *> params);
 };
 
 Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens, const std::vector<std::string> &operators);

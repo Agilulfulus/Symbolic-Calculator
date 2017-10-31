@@ -1,6 +1,5 @@
 #include "Expression.h"
 
-
 Scope::Scope(Scope * parent){
 	this->parent = parent;
 }
