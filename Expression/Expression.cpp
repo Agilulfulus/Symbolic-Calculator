@@ -6,6 +6,12 @@ Expression::Expression() {
 	this->parent = NULL;
 }
 
+Expression::Expression(Lambda * lambda){
+	this->parent = lambda->parent;
+	this->type = LAMBDA;
+	this->lambda = lambda;
+}
+
 Expression::Expression(long long value, Scope * parent) {
 	this->value = value;
 	this->type = INTEGER;
@@ -50,6 +56,9 @@ std::string Expression::getString() {
 		case VARIABLE:			return var_key;
 		case INTEGER:			return std::to_string(value);
 		case END_MARKER:		return "~";
+		case LAMBDA:			return lambda->getString();
+		case LAMBDA_INIT:		return "( " + data[0]->getString() + " -> " + data[1]->getString() + " )";
+		case LAMBDA_RUN:		return "( " + data[0]->getString() + " !! " + data[1]->getString() + " )";
 		case SCOPE:				return "{ " + data[0]->getString() + " }";
 		case ITERATOR:			return "( " + data[0]->getString() + " << " + data[1]->getString() + " )";
 		case DO_LOOP:			return "( " + data[0]->getString() + " do " + data[1]->getString() + " )";
@@ -93,6 +102,9 @@ Expression * Expression::clone(Scope * parent) {
 	if (type == VARIABLE)
 		return new Expression(var_key, parent);
 
+	if (type == LAMBDA)
+		return new Expression(lambda);
+
 	if (type == SCOPE)
 	{
 		Scope * ns = new Scope(parent);
@@ -104,7 +116,10 @@ Expression * Expression::clone(Scope * parent) {
 	for (auto &e : data)
 		newdata.push_back(e->clone(parent));
 
-	return new Expression(type, newdata, parent);
+	auto r = new Expression(type, newdata, parent);
+	r->value = value;
+
+	return r;
 }
 
 void Expression::set(Expression * e){
@@ -114,10 +129,25 @@ void Expression::set(Expression * e){
 	this->data = c->data;
 	this->value = c->value;
 	this->var_key = c->var_key;
+	this->lambda = c->lambda;
 }
 
 Expression * Expression::evaluate() {
 	std::cout << " >> " << getString() << std::endl;
+
+	if (type == LAMBDA_INIT){
+		Expression * exp = data[1];
+		Expression * arg_array = data[0];
+		std::vector<std::string> arg_names;
+
+		for (auto &arg : arg_array->data)
+			arg_names.push_back(arg->var_key);
+
+		Lambda * l = new Lambda(arg_names, parent);
+		l->exp = exp;
+
+		return new Expression(l);
+	}
 
 	if (type == VARIABLE) return parent->getVariable(var_key);
 
@@ -171,7 +201,9 @@ Expression * Expression::evaluate() {
 		&& type != SCOPE
 		&& type != EXTERNAL
 		&& type != ITERATOR
-		&& type != DO_LOOP)
+		&& type != DO_LOOP
+		&& type != LAMBDA_INIT
+		&& type != LAMBDA_RUN)
 	{
 		if (newdata[0]->type == SEQUENCE && newdata[1]->type != SEQUENCE){
 			std::vector<Expression *> seq;
@@ -198,6 +230,7 @@ Expression * Expression::evaluate() {
 		case SCOPE:				return newdata[0];
 		case EXTERNAL:			return data[0]->data[0]->parent->getVariable(data[1]->var_key);
 		case ITERATOR:			return new Expression(ITERATOR, {newdata[0], newdata[1]}, parent);
+		case LAMBDA_RUN:		return newdata[0]->lambda->evaluate(newdata[1]->data);
 
 		case ADDITION: 			return addition(newdata[0], newdata[1], parent); 
 		case SUBTRACTION: 		return subtraction(newdata[0], newdata[1], parent);
@@ -393,6 +426,11 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "<<")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
 			else if (token == "in")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
 			else if (token == "do")	stack.push_back(new Expression(DO_LOOP, {num1, num2}, m));
+			else if (token == "->")	stack.push_back(new Expression(LAMBDA_INIT, {num1, num2}, m));
+			else if (token == "!!")	{
+				num2->value = 1;
+				stack.push_back(new Expression(LAMBDA_RUN, {num1, num2}, m));
+			}
 		}else
 		{
 			stack.push_back(new Expression(token,m));

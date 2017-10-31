@@ -16,6 +16,7 @@ enum Type {
 	INTEGER,
 	VARIABLE,
 	SEQUENCE,
+	LAMBDA,
 	SET,
 	ADDITION,
 	SUBTRACTION,
@@ -38,6 +39,7 @@ enum Type {
 	ITERATOR,
 	DO_LOOP,
 	LAMBDA_INIT,
+	LAMBDA_RUN,
 
 //MARKERS
 	P_MARKER,
@@ -49,10 +51,12 @@ enum Type {
 struct Expression{
 	Type type;
 	long long value = 0;
+	Lambda * lambda = NULL;
 	std::string var_key;
 	std::vector<Expression *> data;
 	Scope * parent;
 	Expression();
+	Expression(Lambda * lambda);
 	Expression(long long value, Scope * parent);
 	Expression(Type type, std::vector<Expression *> data, Scope * parent);
 	Expression(std::string var_key, Scope * parent);
@@ -76,6 +80,7 @@ struct Lambda {
 	std::vector<std::string> arg_names;
 	Lambda(std::vector<std::string> arg_names, Scope * parent);
 	Expression * evaluate(std::vector<Expression *> params);
+	std::string getString();
 };
 
 Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens, const std::vector<std::string> &operators);

@@ -12,8 +12,20 @@ Expression * Lambda::evaluate(std::vector<Expression *> params){
 	for (size_t i = 0; i < arg_names.size(); i++){
 		Expression * n = new Expression(0, ns);
 		n->set(params[i]);
-		ns->getVariable(arg_names[i]) = n;
+		ns->variables[arg_names[i]] = n;
+
+		std::cout << "VAR: " << arg_names[i] << " = " << n->getString() << std::endl;
 	}
 
 	return eval->evaluate();
+}
+
+std::string Lambda::getString(){
+	std::string ret = "( ";
+
+	for (auto &s : arg_names)
+		ret += s + " ";
+	ret += ") -> " + exp->getString();
+
+	return ret;
 }
