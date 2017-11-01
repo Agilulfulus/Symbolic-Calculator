@@ -40,6 +40,7 @@ enum Type {
 	DO_LOOP,
 	LAMBDA_INIT,
 	LAMBDA_RUN,
+	IF_ELSE,
 
 //MARKERS
 	P_MARKER,

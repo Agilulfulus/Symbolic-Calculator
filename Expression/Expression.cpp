@@ -71,13 +71,14 @@ std::string Expression::getString() {
 		case POWER:				return "( " + data[0]->getString() + " ^ " + data[1]->getString() + " )";
 		case ROOT:				return "( " + data[0]->getString() + " rt " + data[1]->getString() + " )";
 		case INDEX:				return "( " + data[0]->getString() + " ## " + data[1]->getString() + " )";
-		case RANGE:				return "( " + data[0]->getString() + " : " + data[1]->getString() + " )";
+		case RANGE:				return "( " + data[0]->getString() + " : " + data[1]->getString() + (data.size() > 2 ? " : " + data[2]->getString() : "") + " )";
 		case LESS:				return "( " + data[0]->getString() + " < " + data[1]->getString() + " )";
 		case ELESS:				return "( " + data[0]->getString() + " <= " + data[1]->getString() + " )";
 		case GREATER:			return "( " + data[0]->getString() + " > " + data[1]->getString() + " )";
 		case EGREATER:			return "( " + data[0]->getString() + " >= " + data[1]->getString() + " )";
 		case EQUAL:				return "( " + data[0]->getString() + " == " + data[1]->getString() + " )";
 		case NEQUAL:			return "( " + data[0]->getString() + " != " + data[1]->getString() + " )";
+		case IF_ELSE:			return "( " + data[0]->getString() + " ? " + data[1]->getString() + (data.size() > 2 ? " : " + data[2]->getString() : "") + " )";
 		case SEQUENCE:
 		{
 			if (data.empty()) return "[]";
@@ -147,6 +148,16 @@ Expression * Expression::evaluate() {
 		l->exp = exp;
 
 		return new Expression(l);
+	}
+
+	if (type == IF_ELSE){
+		Expression * statement = data[0]->evaluate();
+		if (statement->approximate() != 0)
+			return data[1]->evaluate();
+		else if (data.size() > 2)
+			return data[2]->evaluate();
+		else
+			return new Expression(0, parent);
 	}
 
 	if (type == VARIABLE) return parent->getVariable(var_key);
@@ -407,7 +418,7 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "=")	stack.push_back(new Expression(SET, {num1, num2}, m));
 			else if (token == ":")	
 				{
-					if (num1->type == RANGE)
+					if (num1->type == RANGE || num1->type == IF_ELSE)
 					{
 						num1->data.push_back(num2);
 						stack.push_back(num1);
@@ -427,6 +438,7 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "in")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
 			else if (token == "do")	stack.push_back(new Expression(DO_LOOP, {num1, num2}, m));
 			else if (token == "->")	stack.push_back(new Expression(LAMBDA_INIT, {num1, num2}, m));
+			else if (token == "?")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
 			else if (token == "!!")	{
 				num2->value = 1;
 				stack.push_back(new Expression(LAMBDA_RUN, {num1, num2}, m));
