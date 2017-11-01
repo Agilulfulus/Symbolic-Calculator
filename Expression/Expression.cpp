@@ -58,6 +58,7 @@ std::string Expression::getString() {
 		case END_MARKER:		return "~";
 		case LAMBDA:			return lambda->getString();
 		case SIZE:				return "( #" + data[0]->getString() + " )";
+		case FUNCTION_INIT:		return "( " + data[0]->getString() + " => " + data[1]->getString() + " )";
 		case LAMBDA_INIT:		return "( " + data[0]->getString() + " -> " + data[1]->getString() + " )";
 		case LAMBDA_RUN:		return "( " + data[0]->getString() + " !! " + data[1]->getString() + " )";
 		case SCOPE:				return "{ " + data[0]->getString() + " }";
@@ -149,6 +150,23 @@ Expression * Expression::evaluate() {
 		l->exp = exp;
 
 		return new Expression(l);
+	}
+
+	if (type == FUNCTION_INIT){
+		Expression * exp = data[1];
+		Expression * var = data[0]->data[0]->evaluate();
+		Expression * arg_array = data[0]->data[1];
+		std::vector<std::string> arg_names;
+
+		for (auto &arg : arg_array->data)
+			arg_names.push_back(arg->var_key);
+
+		Lambda * l = new Lambda(arg_names, parent);
+		l->exp = exp;
+
+		var->set(new Expression(l));
+
+		return var;
 	}
 
 	if (type == IF_ELSE){
@@ -447,6 +465,7 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "<<")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
 			else if (token == "in")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
 			else if (token == "do")	stack.push_back(new Expression(DO_LOOP, {num1, num2}, m));
+			else if (token == "=>")	stack.push_back(new Expression(FUNCTION_INIT, {num1, num2}, m));
 			else if (token == "->")	stack.push_back(new Expression(LAMBDA_INIT, {num1, num2}, m));
 			else if (token == "?")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
 			else if (token == "!!")	{

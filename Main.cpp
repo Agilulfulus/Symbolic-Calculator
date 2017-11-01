@@ -4,27 +4,27 @@
 
 /*
 
-sum = (a) -> s from {
+sum(a) => s from {
 	s = 0,
 	i in a do s = s + i
 }
 
-prod = (a) -> p from {
+prod(a) => p from {
 	p = 1,
 	i in a do p = p * i
 }
 
-reverse(a) -> a from {
+reverse(a) => a from {
 	a[1:#a] = a[#a:1]
 }
 
-fact = (x) -> {
+fact(x) => {
     x > 1 ? x * fact(x - 1) : x
 }
 
-sort = (array) -> {
-    n << [1:#array] do {
-        i << [1:(#array - 1)] do {
+sort(array) => array from {
+    n in [1:#array] do {
+        i in [1:(#array - 1)] do {
             first = array[i],
             second = array[i + 1],
             first > second ? {
@@ -33,7 +33,7 @@ sort = (array) -> {
             }
         }
     }
-} >> array
+}
 
 */
 
@@ -44,7 +44,7 @@ int main() {
         "+=","-=","*=","/=","%=","^=",
         "=","==","!=","<",">","<=",">=",
         "||","&&", ":","?",
-        "<<", ">>", "**", "->",
+        "<<", ">>", "**", "->", "=>",
         "::", "##", "!!", "#",
         "~~", "do", "from", "in"
     };
@@ -87,6 +87,7 @@ int main() {
     
         //Allocation
         { "=", -1 },
+        { "=>", -1 },
         { "^=", -1 },
         { "*=", -1 },
         { "/=", -1 },
