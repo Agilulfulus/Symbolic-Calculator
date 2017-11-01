@@ -121,7 +121,11 @@ std::vector<std::string> infixToPostfix(
     for (const std::string token : tokens){
         if (vector_contains(operators, token)){
             if (!stack.empty()){
-                while (getPrecedence(stack.back()) >= getPrecedence(token)){
+                while (getPrecedence(stack.back()) > getPrecedence(token) 
+                    || (getPrecedence(stack.back()) == getPrecedence(token) 
+                        && token != "^"
+                        && token != ":"))
+                {
                     output.push_back(stack.back());
                     stack.pop_back();
                     if (stack.empty()) break;

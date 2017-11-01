@@ -46,7 +46,7 @@ int main() {
         "||","&&", ":","?",
         "<<", ">>", "**", "->", "=>",
         "::", "##", "!!", "#",
-        "~~", "do", "from", "in"
+        "~~", "do", "from", "in","then","else"
     };
 
 	const std::map<std::string, int> precedence =
@@ -97,9 +97,11 @@ int main() {
     
         //Seperation
 		{ "?", -2 },
+        { "then", -2},
         { "do", -2 },
-        { ":", -2 },
-        { ",", -3 }
+        { ":", -3 },
+        { "else", -2},
+        { ",", -4 }
 	};
 	
 	Scope * m = new Scope(NULL);

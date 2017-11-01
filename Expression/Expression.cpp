@@ -444,7 +444,7 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "^")	stack.push_back(new Expression(POWER, {num1, num2}, m));
 			else if (token == "rt")	stack.push_back(new Expression(ROOT, {num1, num2}, m));
 			else if (token == "=")	stack.push_back(new Expression(SET, {num1, num2}, m));
-			else if (token == ":")	
+			else if (token == ":" || token == "else")	
 				{
 					if (num1->type == RANGE || num1->type == IF_ELSE)
 					{
@@ -467,7 +467,7 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "do")	stack.push_back(new Expression(DO_LOOP, {num1, num2}, m));
 			else if (token == "=>")	stack.push_back(new Expression(FUNCTION_INIT, {num1, num2}, m));
 			else if (token == "->")	stack.push_back(new Expression(LAMBDA_INIT, {num1, num2}, m));
-			else if (token == "?")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
+			else if (token == "?" || token == "then")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
 			else if (token == "!!")	{
 				num2->value = 1;
 				stack.push_back(new Expression(LAMBDA_RUN, {num1, num2}, m));
