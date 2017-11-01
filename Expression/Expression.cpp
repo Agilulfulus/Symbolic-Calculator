@@ -57,6 +57,7 @@ std::string Expression::getString() {
 		case INTEGER:			return std::to_string(value);
 		case END_MARKER:		return "~";
 		case LAMBDA:			return lambda->getString();
+		case SIZE:				return "( #" + data[0]->getString() + " )";
 		case LAMBDA_INIT:		return "( " + data[0]->getString() + " -> " + data[1]->getString() + " )";
 		case LAMBDA_RUN:		return "( " + data[0]->getString() + " !! " + data[1]->getString() + " )";
 		case SCOPE:				return "{ " + data[0]->getString() + " }";
@@ -134,7 +135,7 @@ void Expression::set(Expression * e){
 }
 
 Expression * Expression::evaluate() {
-	std::cout << " >> " << getString() << std::endl;
+	//std::cout << " >> " << getString() << std::endl;
 
 	if (type == LAMBDA_INIT){
 		Expression * exp = data[1];
@@ -214,7 +215,8 @@ Expression * Expression::evaluate() {
 		&& type != ITERATOR
 		&& type != DO_LOOP
 		&& type != LAMBDA_INIT
-		&& type != LAMBDA_RUN)
+		&& type != LAMBDA_RUN
+		&& type != SIZE)
 	{
 		if (newdata[0]->type == SEQUENCE && newdata[1]->type != SEQUENCE){
 			std::vector<Expression *> seq;
@@ -242,6 +244,7 @@ Expression * Expression::evaluate() {
 		case EXTERNAL:			return data[0]->data[0]->parent->getVariable(data[1]->var_key);
 		case ITERATOR:			return new Expression(ITERATOR, {newdata[0], newdata[1]}, parent);
 		case LAMBDA_RUN:		return newdata[0]->lambda->evaluate(newdata[1]->data);
+		case SIZE:				return new Expression(newdata[0]->data.size(), parent);
 
 		case ADDITION: 			return addition(newdata[0], newdata[1], parent); 
 		case SUBTRACTION: 		return subtraction(newdata[0], newdata[1], parent);
@@ -401,6 +404,13 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 
 			m = m->parent;
 			stack.push_back(new Expression(SCOPE, {slist}, m));
+		}
+		else if (token == "#")
+		{
+			auto num1 = stack.back();
+			stack.pop_back();
+
+			stack.push_back(new Expression(SIZE, {num1}, m));
 		}
 		else if (find(operators.begin(), operators.end(), token) != operators.end())
 		{

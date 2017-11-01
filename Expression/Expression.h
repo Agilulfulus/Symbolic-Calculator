@@ -41,6 +41,7 @@ enum Type {
 	LAMBDA_INIT,
 	LAMBDA_RUN,
 	IF_ELSE,
+	SIZE,
 
 //MARKERS
 	P_MARKER,

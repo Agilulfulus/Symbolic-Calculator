@@ -14,7 +14,7 @@ Expression * Lambda::evaluate(std::vector<Expression *> params){
 		n->set(params[i]);
 		ns->variables[arg_names[i]] = n;
 
-		std::cout << "VAR: " << arg_names[i] << " = " << n->getString() << std::endl;
+		//std::cout << "VAR: " << arg_names[i] << " = " << n->getString() << std::endl;
 	}
 
 	return eval->evaluate();

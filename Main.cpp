@@ -18,6 +18,23 @@ reverse(a) -> a from {
 	a[1:#a] = a[#a:1]
 }
 
+fact = (x) -> {
+    x > 1 ? x * fact(x - 1) : x
+}
+
+sort = (array) -> {
+    n << [1:#array] do {
+        i << [1:(#array - 1)] do {
+            first = array[i],
+            second = array[i + 1],
+            first > second ? {
+                array[i] = second,
+                array[i + 1] = first
+            }
+        }
+    }
+} >> array
+
 */
 
 int main() {
@@ -28,7 +45,7 @@ int main() {
         "=","==","!=","<",">","<=",">=",
         "||","&&", ":","?",
         "<<", ">>", "**", "->",
-        "::", "##", "!!",
+        "::", "##", "!!", "#",
         "~~", "do", "from", "in"
     };
 
@@ -39,6 +56,7 @@ int main() {
         { "##", 11 },
         { "::", 11 },
         { "->", 1 },
+        { "#", 10 },
     
         //Arithmetic
         { "~~", 10 },
