@@ -41,6 +41,9 @@ Expression * addition(Expression * a, Expression * b, Scope * parent) {
 }
 
 Expression * subtraction(Expression * a, Expression * b, Scope * parent) {
+	if (expressionEquals(a, b))
+		return new Expression(0, parent);
+
 	switch(a->type){
 		case INTEGER:
 		switch(b->type){
@@ -58,6 +61,17 @@ Expression * subtraction(Expression * a, Expression * b, Scope * parent) {
 			}
 		}
 		break;
+		case ADDITION:
+		{
+			auto num_a = a->data[0];
+			auto num_b = a->data[1];
+
+			if (expressionEquals(num_a, b))
+				return num_b;
+			if (expressionEquals(num_b, b))
+				return num_a;
+			return new Expression(SUBTRACTION, {a, b}, parent);
+		}
 		case DIVISION:
 		switch(b->type){
 			case DIVISION:
@@ -84,12 +98,32 @@ Expression * subtraction(Expression * a, Expression * b, Scope * parent) {
 				return frac->evaluate();
 			}
 		}
+		case LOG:
+		switch(b->type){
+			case LOG:
+			{
+				Expression * num_a = a->data[0];
+				Expression * num_b = b->data[0];
+				Expression * base_a = a->data[1];
+				Expression * base_b = b->data[1];
+
+				if (!expressionEquals(base_a, base_b))
+					return new Expression(SUBTRACTION, {a, b}, parent);
+
+				Expression * div = new Expression(DIVISION, {num_a, num_b}, parent);
+				Expression * l = new Expression(LOG, {div, base_a}, parent);
+				return l->evaluate();
+			}
+		}
 	}
 
 	return new Expression(SUBTRACTION, {a, b}, parent);
 }
 
 Expression * multiplication(Expression * a, Expression * b, Scope * parent) {
+	if (double_equals(a->approximate(), 0) || double_equals(b->approximate(), 0))
+		return new Expression(0, parent);
+
 	switch(a->type){
 		case INTEGER:
 		switch(b->type){
@@ -168,6 +202,18 @@ Expression * multiplication(Expression * a, Expression * b, Scope * parent) {
 			}
 		}
 		break;
+		case LOG:
+		switch(b->type){
+			default:
+			{
+				Expression * num = a->data[0];
+				Expression * base = a->data[1];
+				Expression * exp = b;
+				Expression * new_exp = new Expression(POWER, {num, exp}, parent);
+				Expression * new_log = new Expression(LOG, {new_exp, base}, parent);
+				return new_log->evaluate();
+			}
+		}
 	}
 
 	return new Expression(MULTIPLICATION, {a, b}, parent);
@@ -301,11 +347,38 @@ Expression * division(Expression * a, Expression * b, Scope * parent) {
 				}
 			}
 		}
+		case LOG:
+		{
+			switch(b->type){
+				case LOG:
+				{
+					auto num_a = a->data[0];
+					auto base_a = a->data[1];
+					auto num_b = b->data[0];
+					auto base_b = b->data[1];
+
+					if (expressionEquals(base_a, base_b)){
+						auto new_log = new Expression(LOG, {num_a, num_b}, parent);
+						return new_log->evaluate();
+					}else
+					{
+						return new Expression(DIVISION, {a, b}, parent);
+					}
+				}
+			}
+		}
 	}
 	return new Expression(DIVISION, {a, b}, parent);
 }
 
 Expression * power(Expression * a, Expression * b, Scope * parent) {
+	if (double_equals(b->approximate(), 0))
+		return new Expression(1, parent);
+	if (double_equals(b->approximate(), 1))
+		return a;
+	if (double_equals(a->approximate(), 1))
+		return new Expression(1, parent);
+
 	switch(a->type){
 		case INTEGER:
 		switch(b->type){
@@ -316,6 +389,17 @@ Expression * power(Expression * a, Expression * b, Scope * parent) {
 				Expression * root = new Expression(ROOT, {b->data[1], power}, parent);
 
 				return root->evaluate();
+			}
+			case LOG:
+			{
+				Expression * num_a = a;
+				Expression * base = b->data[1];
+				Expression * num_b = b->data[0];
+
+				if (!expressionEquals(num_a, base))
+					return new Expression(POWER, {a, b}, parent);
+
+				return num_b;
 			}
 		}
 		break;
@@ -404,4 +488,37 @@ Expression * root(Expression * a, Expression * b, Scope * parent) {
 		break;
 	}
 	return new Expression(ROOT, {a, b}, parent);
+}
+
+Expression * logar(Expression * a, Expression * b, Scope * parent) {
+	switch(a->type){
+		case INTEGER:
+		switch(b->type){
+			case INTEGER:
+			{
+				long long num = a->value;
+				long long base = b->value;
+
+				if (double_equals(log(num) / log(base), round(log(num) / log(base))))
+				{
+					long long base_value_n = round(log(num) / log(base));
+					return new Expression(base_value_n, parent);
+				}
+
+				auto factors = primeFactors(num);
+
+				if (factors[0] == num)
+					return new Expression(LOG, {a, b}, parent);
+				else
+				{
+					Expression * num_a = new Expression(LOG, {new Expression(factors[1], parent), new Expression(base, parent)}, parent);
+					Expression * num_b = new Expression(LOG, {new Expression(num / factors[1], parent), new Expression(base, parent)}, parent);
+					Expression * t = new Expression(ADDITION, {num_b, num_a}, parent);
+
+					return t->evaluate();
+				}
+			}
+		}
+	}
+	return new Expression(LOG, {a, b}, parent);
 }

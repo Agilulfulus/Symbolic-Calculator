@@ -24,6 +24,7 @@ enum Type {
 	DIVISION,
 	POWER,
 	ROOT,
+	LOG,
 
 //NON-ARITHMETIC
 	SCOPE,
@@ -48,7 +49,8 @@ enum Type {
 	P_MARKER,
 	B_MARKER,
 	C_MARKER,
-	END_MARKER
+	END_MARKER,
+	IMMUTABLE
 };
 
 struct Expression{
@@ -93,10 +95,12 @@ Expression * multiplication(Expression * a, Expression * b, Scope * parent);
 Expression * division(Expression * a, Expression * b, Scope * parent);
 Expression * power(Expression * a, Expression * b, Scope * parent);
 Expression * root(Expression * a, Expression * b, Scope * parent);
+Expression * logar(Expression * a, Expression * b, Scope * parent);
 
 long long gcd(long long a, long long b);
 std::vector<long long> factor(long long n, long long fac);
 bool expressionEquals(Expression * a, Expression * b);
-bool double_equals(double a, double b, double epsilon = 0.0001);
+bool double_equals(double a, double b, double epsilon = 0.00000001);
+std::vector<long long> primeFactors(long long n);
 
 #endif

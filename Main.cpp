@@ -19,7 +19,15 @@ reverse(a) => a from {
 }
 
 fact(x) => {
-    x > 1 ? x * fact(x - 1) : x
+    x > 1 then 
+        x * fact(x - 1)
+    else
+        x
+}
+
+size(array) => s from {
+    s = 0,
+    i in array do s = s + 1
 }
 
 sort(array) => array from {
@@ -27,7 +35,7 @@ sort(array) => array from {
         i in [1:(#array - 1)] do {
             first = array[i],
             second = array[i + 1],
-            first > second ? {
+            first > second then {
                 array[i] = second,
                 array[i + 1] = first
             }
@@ -39,7 +47,7 @@ sort(array) => array from {
 
 int main() {
 	const std::vector<std::string> operators = {
-        "+","-","*","/","%","^","rt",
+        "+","-","*","/","%","^","rt","log",
         "++","--",",",
         "+=","-=","*=","/=","%=","^=",
         "=","==","!=","<",">","<=",">=",
@@ -57,6 +65,7 @@ int main() {
         { "::", 11 },
         { "->", 1 },
         { "#", 10 },
+        { ":", 9 },
     
         //Arithmetic
         { "~~", 10 },
@@ -96,10 +105,8 @@ int main() {
         { "-=", -1 },
     
         //Seperation
-		{ "?", -2 },
         { "then", -2},
         { "do", -2 },
-        { ":", -3 },
         { "else", -2},
         { ",", -4 }
 	};

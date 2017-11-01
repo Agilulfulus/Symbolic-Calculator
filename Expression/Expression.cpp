@@ -47,12 +47,15 @@ double Expression::approximate(){
 		case EGREATER:			return data[0]->approximate() >= data[1]->approximate();
 		case EQUAL:				return double_equals(data[0]->approximate(), data[1]->approximate());
 		case NEQUAL:			return double_equals(data[0]->approximate(), data[1]->approximate());
+		case LOG:				return std::log(data[0]->approximate()) / std::log(data[1]->approximate());
+		case IMMUTABLE:			return data[0]->approximate();
 		default:				return 0;
 	}
 }
 
 std::string Expression::getString() {
 	switch(type){
+		case IMMUTABLE:
 		case VARIABLE:			return var_key;
 		case INTEGER:			return std::to_string(value);
 		case END_MARKER:		return "~";
@@ -72,6 +75,7 @@ std::string Expression::getString() {
 		case DIVISION:			return "( " + data[0]->getString() + " / " + data[1]->getString() + " )";
 		case POWER:				return "( " + data[0]->getString() + " ^ " + data[1]->getString() + " )";
 		case ROOT:				return "( " + data[0]->getString() + " rt " + data[1]->getString() + " )";
+		case LOG:				return "( " + data[0]->getString() + " log " + data[1]->getString() + " )";
 		case INDEX:				return "( " + data[0]->getString() + " ## " + data[1]->getString() + " )";
 		case RANGE:				return "( " + data[0]->getString() + " : " + data[1]->getString() + (data.size() > 2 ? " : " + data[2]->getString() : "") + " )";
 		case LESS:				return "( " + data[0]->getString() + " < " + data[1]->getString() + " )";
@@ -80,7 +84,7 @@ std::string Expression::getString() {
 		case EGREATER:			return "( " + data[0]->getString() + " >= " + data[1]->getString() + " )";
 		case EQUAL:				return "( " + data[0]->getString() + " == " + data[1]->getString() + " )";
 		case NEQUAL:			return "( " + data[0]->getString() + " != " + data[1]->getString() + " )";
-		case IF_ELSE:			return "( " + data[0]->getString() + " ? " + data[1]->getString() + (data.size() > 2 ? " : " + data[2]->getString() : "") + " )";
+		case IF_ELSE:			return "( " + data[0]->getString() + " then " + data[1]->getString() + (data.size() > 2 ? " else " + data[2]->getString() : "") + " )";
 		case SEQUENCE:
 		{
 			if (data.empty()) return "[]";
@@ -270,6 +274,7 @@ Expression * Expression::evaluate() {
 		case DIVISION:		 	return division(newdata[0], newdata[1], parent);
 		case POWER:			 	return power(newdata[0], newdata[1], parent);
 		case ROOT:			 	return root(newdata[0], newdata[1], parent);
+		case LOG:			 	return logar(newdata[0], newdata[1], parent);
 
 		case LESS:				return new Expression(newdata[0]->approximate() < newdata[1]->approximate(),parent);
 		case ELESS:				return new Expression(newdata[0]->approximate() <= newdata[1]->approximate(),parent);
@@ -358,6 +363,18 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 		{
 			stack.push_back(new Expression(0, m));
 		}
+		else if (token == "PI" || token == "pi"){
+			Expression * pi_raw = new Expression(DIVISION, {new Expression(355, m), new Expression(113, m)}, m);
+			Expression * pi = new Expression(IMMUTABLE, {pi_raw}, m);
+			pi->var_key = "PI";
+			stack.push_back(pi);
+		}
+		else if (token == "e"){
+			Expression * e_raw = new Expression(DIVISION, {new Expression(1457, m), new Expression(536, m)}, m);
+			Expression * e = new Expression(IMMUTABLE, {e_raw}, m);
+			e->var_key = "e";
+			stack.push_back(e);
+		}
 		else if (token == "~")
 		{
 			stack.push_back(new Expression(END_MARKER, {}, m));			
@@ -443,16 +460,19 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "/") 	stack.push_back(new Expression(DIVISION, {num1, num2}, m));
 			else if (token == "^")	stack.push_back(new Expression(POWER, {num1, num2}, m));
 			else if (token == "rt")	stack.push_back(new Expression(ROOT, {num1, num2}, m));
+			else if (token == "log")	stack.push_back(new Expression(LOG, {num1, num2}, m));
 			else if (token == "=")	stack.push_back(new Expression(SET, {num1, num2}, m));
-			else if (token == ":" || token == "else")	
-				{
-					if (num1->type == RANGE || num1->type == IF_ELSE)
-					{
-						num1->data.push_back(num2);
-						stack.push_back(num1);
-					}else
-						stack.push_back(new Expression(RANGE, {num1, num2}, m));
-				}
+			else if (token == ":")	{
+				if (num1->type == RANGE){
+					num1->data.push_back(num2);
+					stack.push_back(num1);
+				}else
+					stack.push_back(new Expression(RANGE, {num1, num2}, m));
+			}
+			else if (token == "else") {
+				num1->data.push_back(num2);
+				stack.push_back(num1);
+			}
 			else if (token == "##")	stack.push_back(new Expression(INDEX, {num1, num2}, m));
 			else if (token == "<")	stack.push_back(new Expression(LESS, {num1, num2}, m));
 			else if (token == "<=")	stack.push_back(new Expression(ELESS, {num1, num2}, m));
@@ -467,7 +487,7 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 			else if (token == "do")	stack.push_back(new Expression(DO_LOOP, {num1, num2}, m));
 			else if (token == "=>")	stack.push_back(new Expression(FUNCTION_INIT, {num1, num2}, m));
 			else if (token == "->")	stack.push_back(new Expression(LAMBDA_INIT, {num1, num2}, m));
-			else if (token == "?" || token == "then")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
+			else if (token == "then")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
 			else if (token == "!!")	{
 				num2->value = 1;
 				stack.push_back(new Expression(LAMBDA_RUN, {num1, num2}, m));
@@ -511,4 +531,29 @@ std::vector<long long> factor(long long n, long long fac)
 bool double_equals(double a, double b, double epsilon)
 {
 	return std::abs(a - b) < epsilon;
+}
+
+std::vector<long long> primeFactors(long long n)
+{
+	std::vector<long long> output;
+
+	while (n % 2 == 0)
+	{
+		output.push_back(2);
+		n = n / 2;
+	}
+
+	for (int i = 3; i <= sqrt(n); i = i + 2)
+	{
+		while (n%i == 0)
+		{
+			output.push_back(i);
+			n = n / i;
+		}
+	}
+
+	if (n > 2)
+		output.push_back(n);
+
+	return output;
 }
