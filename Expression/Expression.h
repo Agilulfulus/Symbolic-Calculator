@@ -50,7 +50,8 @@ enum Type {
 	B_MARKER,
 	C_MARKER,
 	END_MARKER,
-	IMMUTABLE
+	IMMUTABLE,
+	BREAK_MARKER
 };
 
 struct Expression{

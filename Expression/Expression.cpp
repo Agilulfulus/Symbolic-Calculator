@@ -85,6 +85,7 @@ std::string Expression::getString() {
 		case EQUAL:				return "( " + data[0]->getString() + " == " + data[1]->getString() + " )";
 		case NEQUAL:			return "( " + data[0]->getString() + " != " + data[1]->getString() + " )";
 		case IF_ELSE:			return "( " + data[0]->getString() + " then " + data[1]->getString() + (data.size() > 2 ? " else " + data[2]->getString() : "") + " )";
+		case BREAK_MARKER:		return "break";
 		case SEQUENCE:
 		{
 			if (data.empty()) return "[]";
@@ -194,6 +195,7 @@ Expression * Expression::evaluate() {
 		for (auto &e : data)
 		{
 			Expression * d1 = e->evaluate();
+			if (d1->type == BREAK_MARKER) return d1;
 			if (type == SEQUENCE && (value == 0 || e->type == RANGE) && d1->type == SEQUENCE && d1->value == 0)
 				newdata.insert(newdata.end(), d1->data.begin(), d1->data.end());
 			else
@@ -334,7 +336,9 @@ Expression * Expression::evaluate() {
 			{
 				parent->getVariable(varname) = d;
 
-				scope->evaluate();
+				auto s = scope->evaluate();
+				if (s->type == BREAK_MARKER)
+					break;
 			}
 
 			return new Expression(0, parent);
@@ -362,6 +366,10 @@ Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens,
 		else if (token == "false")
 		{
 			stack.push_back(new Expression(0, m));
+		}
+		else if (token == "break")
+		{
+			stack.push_back(new Expression(BREAK_MARKER, {}, m));
 		}
 		else if (token == "PI" || token == "pi"){
 			Expression * pi_raw = new Expression(DIVISION, {new Expression(355, m), new Expression(113, m)}, m);
