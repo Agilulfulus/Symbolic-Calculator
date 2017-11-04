@@ -124,7 +124,8 @@ std::vector<std::string> infixToPostfix(
                 while (getPrecedence(stack.back()) > getPrecedence(token) 
                     || (getPrecedence(stack.back()) == getPrecedence(token) 
                         && token != "^"
-                        && token != "else"))
+                        && token != "else"
+                        && token != "="))
                 {
                     output.push_back(stack.back());
                     stack.pop_back();

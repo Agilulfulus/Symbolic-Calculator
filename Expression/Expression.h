@@ -7,10 +7,23 @@
 #include <map>
 #include <iostream>
 #include <algorithm>
+#include <memory>
+
+using std::string;
+
+#define newLmb	std::make_shared<Lambda>
+#define newScp	std::make_shared<Scope>
 
 struct Expression;
 struct Scope;
 struct Lambda;
+
+typedef std::vector<string> 		strVec;
+typedef std::shared_ptr<Expression>	expPtr;
+typedef std::shared_ptr<Scope>		scpPtr;
+typedef std::shared_ptr<Lambda>		lmbPtr;
+typedef std::vector<expPtr> 		expVec;
+typedef long long 					rawInt;
 
 enum Type {
 	INTEGER,
@@ -22,6 +35,7 @@ enum Type {
 	SUBTRACTION,
 	MULTIPLICATION,
 	DIVISION,
+	MODULUS,
 	POWER,
 	ROOT,
 	LOG,
@@ -44,6 +58,7 @@ enum Type {
 	LAMBDA_RUN,
 	IF_ELSE,
 	SIZE,
+	CONCAT,
 
 //MARKERS
 	P_MARKER,
@@ -51,57 +66,74 @@ enum Type {
 	C_MARKER,
 	END_MARKER,
 	IMMUTABLE,
-	BREAK_MARKER
+	BREAK_MARKER,
+	RETURN_MARKER
 };
 
-struct Expression{
+struct Expression : std::enable_shared_from_this<Expression> 
+{
 	Type type;
-	long long value = 0;
-	Lambda * lambda = NULL;
-	std::string var_key;
-	std::vector<Expression *> data;
-	Scope * parent;
+	rawInt value = 0;
+	lmbPtr lambda = NULL;
+	string varKey;
+	expVec data;
+	scpPtr parent;
 	Expression();
-	Expression(Lambda * lambda);
-	Expression(long long value, Scope * parent);
-	Expression(Type type, std::vector<Expression *> data, Scope * parent);
-	Expression(std::string var_key, Scope * parent);
-	Expression * evaluate();
-	Expression * clone(Scope * parent);
-	void set(Expression * e);
-	std::string getString();
+	Expression(lmbPtr);
+	Expression(rawInt, scpPtr);
+	Expression(Type, expVec, scpPtr);
+	Expression(string, scpPtr);
+	expPtr evaluate();
+	expPtr clone(scpPtr);
+	void set(expPtr);
+	string getString();
 	double approximate();
+	static long refCount;
+	~Expression();
 };
 
-struct Scope{
-	Scope * parent;
-	std::map<std::string, Expression *> variables;
-	Scope(Scope * parent);
-	Expression *& getVariable(std::string key);
+struct Scope : std::enable_shared_from_this<Scope> 
+{
+	scpPtr parent;
+	std::map<string, expPtr> variables;
+	Scope();
+	Scope(scpPtr);
+	expPtr& getVariable(string);
+	static long refCount;
+	~Scope();
 };
 
-struct Lambda {
-	Expression * exp;
-	Scope * parent;
-	std::vector<std::string> arg_names;
-	Lambda(std::vector<std::string> arg_names, Scope * parent);
-	Expression * evaluate(std::vector<Expression *> params);
-	std::string getString();
+struct Lambda : std::enable_shared_from_this<Lambda> 
+{
+	expPtr exp;
+	scpPtr parent;
+	strVec arg_names;
+	Lambda(strVec, scpPtr);
+	expPtr evaluate(expVec);
+	string getString();
+	static long refCount;
+	~Lambda();
 };
 
-Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens, const std::vector<std::string> &operators);
-Expression * addition(Expression * a, Expression * b, Scope * parent);
-Expression * subtraction(Expression * a, Expression * b, Scope * parent);
-Expression * multiplication(Expression * a, Expression * b, Scope * parent);
-Expression * division(Expression * a, Expression * b, Scope * parent);
-Expression * power(Expression * a, Expression * b, Scope * parent);
-Expression * root(Expression * a, Expression * b, Scope * parent);
-Expression * logar(Expression * a, Expression * b, Scope * parent);
+expPtr convertTokens(scpPtr&, strVec&, strVec&);
+expPtr addition(expPtr, expPtr, scpPtr);
+expPtr subtraction(expPtr, expPtr, scpPtr);
+expPtr multiplication(expPtr, expPtr, scpPtr);
+expPtr division(expPtr, expPtr, scpPtr);
+expPtr power(expPtr, expPtr, scpPtr);
+expPtr root(expPtr, expPtr, scpPtr);
+expPtr logar(expPtr, expPtr, scpPtr);
 
-long long gcd(long long a, long long b);
-std::vector<long long> factor(long long n, long long fac);
-bool expressionEquals(Expression * a, Expression * b);
+rawInt gcd(rawInt a, rawInt b);
+std::vector<rawInt> factor(rawInt n, rawInt fac);
+bool expressionEquals(expPtr a, expPtr b);
 bool double_equals(double a, double b, double epsilon = 0.00000001);
-std::vector<long long> primeFactors(long long n);
+std::vector<rawInt> primeFactors(rawInt n);
+
+expPtr newExp();
+expPtr newExp(lmbPtr);
+expPtr newExp(rawInt, scpPtr);
+expPtr newExp(Type, expVec, scpPtr);
+expPtr newExp(string, scpPtr);
 
 #endif

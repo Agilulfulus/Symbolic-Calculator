@@ -19,10 +19,7 @@ reverse(a) => a from {
 }
 
 fact(x) => {
-    x > 1 then 
-        x * fact(x - 1)
-    else
-        x
+    x > 1 then x * fact(x - 1) else x
 }
 
 size(array) => s from {
@@ -31,22 +28,40 @@ size(array) => s from {
 }
 
 sort(array) => array from {
-    n in [1:#array] do {
+    n in array do {
         i in [1:(#array - 1)] do {
-            first = array[i],
-            second = array[i + 1],
-            first > second then {
-                array[i] = second,
-                array[i + 1] = first
+            array[i] > array[i + 1] then {
+                array[i, i + 1] = array[i + 1, i]
             }
         }
+    }
+}
+
+quickSort(array, comparator) => array from {
+    #array <= 1 then return,
+    comparator == nil then comparator(x, y) => {x < y},
+    pivot = array[~],
+    lower = upper = [],
+    n in array[1:(#array - 1)] do {
+        comparator(n, pivot) then
+            lower = lower ++ [n]
+        else
+            upper = upper ++ [n]
+    },
+    array = quickSort(lower, comparator) ++ [pivot] ++ quickSort(upper, comparator)
+}
+
+fib(limit) => array from {
+    array = [0, 1],
+    i in [3:limit] do {
+        array = array ++ [array[i - 1] + array[i - 2]]
     }
 }
 
 */
 
 int main() {
-	const std::vector<std::string> operators = {
+	std::vector<std::string> operators = {
         "+","-","*","/","%","^","rt","log",
         "++","--",",",
         "+=","-=","*=","/=","%=","^=",
@@ -57,7 +72,7 @@ int main() {
         "~~", "do", "from", "in","then","else"
     };
 
-	const std::map<std::string, int> precedence =
+	std::map<std::string, int> precedence =
     {
         //Grouping
         { "!!", 11 },
@@ -107,29 +122,31 @@ int main() {
         //Seperation
         { "then", -2},
         { "do", -2 },
-        { "else", -2},
+        { "else", -3},
         { ",", -4 }
 	};
 	
-	Scope * m = new Scope(NULL);
+    scpPtr m = newScp();
 	std::string line;
 	while(true) {
-		std::cout << "> ";
+		std::cout << "\n>>> ";
 		std::getline(std::cin, line);
 		if (line == "") break;
 
 		try {
 			auto tokens = tokenize(line, operators);
 			auto postfix = infixToPostfix(tokens, operators, precedence);
-			for (auto &t : postfix)
-				std::cout << t << " ";
-			std::cout << std::endl;
+
+            //for (auto &s : postfix)
+                //std::cout << s << " ";
+            //std::cout << std::endl;
 
 			auto e = convertTokens(m, postfix, operators);
-			std::cout << e->getString() << std::endl;
-			std::cout << e->evaluate()->getString() << std::endl;
+			std::cout << "\n\t" << e->getString() << std::endl;
+			std::cout << "\n\t" << e->evaluate()->getString() << std::endl;
+            std::cout << "\n\tDAT:" << Expression::refCount << "\tLAM: " << Lambda::refCount << "\tSCO: " << Scope::refCount << std::endl;
 		} catch(std::runtime_error &e){
-			std::cout << e.what() << std::endl;
+			std::cout << "\n\t" << e.what() << std::endl;
 		}
     }
 	return 0;

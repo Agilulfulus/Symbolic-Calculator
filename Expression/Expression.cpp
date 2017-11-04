@@ -1,44 +1,94 @@
 #include "Expression.h"
 
+long Expression::refCount = 0;
+
+expPtr newExp(){
+	return std::make_shared<Expression>(
+		Expression()
+	);
+}
+
+expPtr newExp(lmbPtr lambda){
+	//std::cout << "New Lambda" << std::endl;
+	return std::make_shared<Expression>(
+		Expression(lambda)
+	);
+}
+
+expPtr newExp(rawInt value, scpPtr parent){
+	//std::cout << "New Integer" << std::endl;
+	return std::make_shared<Expression>(
+		Expression(value, parent)
+	);
+}
+
+expPtr newExp(Type type, expVec data, scpPtr parent){
+	//std::cout << "New General" << std::endl;
+	return std::make_shared<Expression>(
+		Expression(type, data, parent)
+	);
+}
+
+expPtr newExp(string varKey, scpPtr parent){
+	//std::cout << "New Variable" << std::endl;
+	return std::make_shared<Expression>(
+		Expression(varKey, parent)
+	);
+}
+
 Expression::Expression() {
 	this->value = 0;
 	this->type = INTEGER;
 	this->parent = NULL;
+	refCount+=2;
 }
 
-Expression::Expression(Lambda * lambda){
+Expression::Expression(lmbPtr lambda){
 	this->parent = lambda->parent;
 	this->type = LAMBDA;
 	this->lambda = lambda;
+	refCount+=2;
 }
 
-Expression::Expression(long long value, Scope * parent) {
+Expression::Expression(rawInt value, scpPtr parent) {
 	this->value = value;
 	this->type = INTEGER;
 	this->parent = parent;
+	refCount+=2;
 }
 
-Expression::Expression(Type type, std::vector<Expression *> data, Scope * parent) {
+Expression::Expression(Type type, expVec data, scpPtr parent) {
 	this->data = data;
 	this->type = type;
 	this->parent = parent;
+	refCount+=2;
 }
 
-Expression::Expression(std::string var_key, Scope * parent) {
-	this->var_key = var_key;
+Expression::Expression(string varKey, scpPtr parent) {
+	this->varKey = varKey;
 	this->type = VARIABLE;
 	this->parent = parent;
+	refCount+=2;
+}
+
+
+Expression::~Expression(){
+	data.clear();
+	parent = NULL;
+	lambda = NULL;
+	refCount--;
 }
 
 double Expression::approximate(){
 	switch(type){
-		case VARIABLE:			return parent->getVariable(var_key)->approximate();
+		case VARIABLE:			return parent->getVariable(varKey)->approximate();
 		case INTEGER:			return value;
 		case SET:				return evaluate()->approximate();
 		case ADDITION:			return data[0]->approximate() + data[1]->approximate();
 		case SUBTRACTION:		return data[0]->approximate() - data[1]->approximate();
 		case MULTIPLICATION:	return data[0]->approximate() * data[1]->approximate();
 		case DIVISION:			return data[0]->approximate() / data[1]->approximate();
+		case MODULUS:			return (long long)data[0]->approximate() % (long long)data[1]->approximate();
 		case POWER:				return std::pow(data[0]->approximate(), data[1]->approximate());
 		case ROOT:				return std::pow(data[1]->approximate(), 1.0 / data[0]->approximate());
 		case LESS:				return data[0]->approximate() < data[1]->approximate();
@@ -53,47 +103,50 @@ double Expression::approximate(){
 	}
 }
 
-std::string Expression::getString() {
+string Expression::getString() {
 	switch(type){
-		case IMMUTABLE:
-		case VARIABLE:			return var_key;
-		case INTEGER:			return std::to_string(value);
+		case ADDITION:			return "( " + data[0]->getString() + " + " + data[1]->getString() + " )";
+		case BREAK_MARKER:		return "break";
+		case RETURN_MARKER:		return "return";
+		case CONCAT:			return "( " + data[0]->getString() + " ++ " + data[1]->getString() + " )";
+		case DIVISION:			return "( " + data[0]->getString() + " / " + data[1]->getString() + " )";
+		case MODULUS:			return "( " + data[0]->getString() + " % " + data[1]->getString() + " )";
+		case DO_LOOP:			return "( " + data[0]->getString() + " do " + data[1]->getString() + " )";
+		case EGREATER:			return "( " + data[0]->getString() + " >= " + data[1]->getString() + " )";
+		case ELESS:				return "( " + data[0]->getString() + " <= " + data[1]->getString() + " )";
 		case END_MARKER:		return "~";
-		case LAMBDA:			return lambda->getString();
-		case SIZE:				return "( #" + data[0]->getString() + " )";
+		case EQUAL:				return "( " + data[0]->getString() + " == " + data[1]->getString() + " )";
+		case EXTERNAL:			return "( " + data[0]->getString() + " >> " + data[1]->getString() + " )";
 		case FUNCTION_INIT:		return "( " + data[0]->getString() + " => " + data[1]->getString() + " )";
+		case GREATER:			return "( " + data[0]->getString() + " > " + data[1]->getString() + " )";
+		case IF_ELSE:			return "( " + data[0]->getString() + " then " + data[1]->getString() + (data.size() > 2 ? " else " + data[2]->getString() : "") + " )";
+		case IMMUTABLE:			return varKey;
+		case INDEX:				return "( " + data[0]->getString() + " ## " + data[1]->getString() + " )";
+		case INTEGER:			return std::to_string(value);
+		case ITERATOR:			return "( " + data[0]->getString() + " << " + data[1]->getString() + " )";
+		case LAMBDA:			return lambda->getString();
 		case LAMBDA_INIT:		return "( " + data[0]->getString() + " -> " + data[1]->getString() + " )";
 		case LAMBDA_RUN:		return "( " + data[0]->getString() + " !! " + data[1]->getString() + " )";
-		case SCOPE:				return "{ " + data[0]->getString() + " }";
-		case ITERATOR:			return "( " + data[0]->getString() + " << " + data[1]->getString() + " )";
-		case DO_LOOP:			return "( " + data[0]->getString() + " do " + data[1]->getString() + " )";
-		case EXTERNAL:			return "( " + data[0]->getString() + " >> " + data[1]->getString() + " )";
-		case SET:				return "( " + data[0]->getString() + " = " + data[1]->getString() + " )";
-		case ADDITION:			return "( " + data[0]->getString() + " + " + data[1]->getString() + " )";
-		case SUBTRACTION:		return "( " + data[0]->getString() + " - " + data[1]->getString() + " )";
-		case MULTIPLICATION:	return "( " + data[0]->getString() + " * " + data[1]->getString() + " )";
-		case DIVISION:			return "( " + data[0]->getString() + " / " + data[1]->getString() + " )";
-		case POWER:				return "( " + data[0]->getString() + " ^ " + data[1]->getString() + " )";
-		case ROOT:				return "( " + data[0]->getString() + " rt " + data[1]->getString() + " )";
-		case LOG:				return "( " + data[0]->getString() + " log " + data[1]->getString() + " )";
-		case INDEX:				return "( " + data[0]->getString() + " ## " + data[1]->getString() + " )";
-		case RANGE:				return "( " + data[0]->getString() + " : " + data[1]->getString() + (data.size() > 2 ? " : " + data[2]->getString() : "") + " )";
 		case LESS:				return "( " + data[0]->getString() + " < " + data[1]->getString() + " )";
-		case ELESS:				return "( " + data[0]->getString() + " <= " + data[1]->getString() + " )";
-		case GREATER:			return "( " + data[0]->getString() + " > " + data[1]->getString() + " )";
-		case EGREATER:			return "( " + data[0]->getString() + " >= " + data[1]->getString() + " )";
-		case EQUAL:				return "( " + data[0]->getString() + " == " + data[1]->getString() + " )";
+		case LOG:				return "( " + data[0]->getString() + " log " + data[1]->getString() + " )";
+		case MULTIPLICATION:	return "( " + data[0]->getString() + " * " + data[1]->getString() + " )";
 		case NEQUAL:			return "( " + data[0]->getString() + " != " + data[1]->getString() + " )";
-		case IF_ELSE:			return "( " + data[0]->getString() + " then " + data[1]->getString() + (data.size() > 2 ? " else " + data[2]->getString() : "") + " )";
-		case BREAK_MARKER:		return "break";
+		case POWER:				return "( " + data[0]->getString() + " ^ " + data[1]->getString() + " )";
+		case RANGE:				return "( " + data[0]->getString() + " : " + data[1]->getString() + (data.size() > 2 ? " : " + data[2]->getString() : "") + " )";
+		case ROOT:				return "( " + data[0]->getString() + " rt " + data[1]->getString() + " )";
+		case SCOPE:				return "{ " + data[0]->getString() + " }";
+		case SET:				return "( " + data[0]->getString() + " = " + data[1]->getString() + " )";
+		case SIZE:				return "( #" + data[0]->getString() + " )";
+		case SUBTRACTION:		return "( " + data[0]->getString() + " - " + data[1]->getString() + " )";
+		case VARIABLE:			return varKey;
 		case SEQUENCE:
 		{
 			if (data.empty()) return "[]";
-			std::string r = "[ " + data[0]->getString();
+			string r = "[ " + data[0]->getString();
 
-			for (int i = 1; i < data.size(); i++)
+			for (size_t i = 1; i < data.size(); i++)
 			{
-				auto d = data[i];
+				expPtr d = data[i];
 				r += ", " + d->getString();
 			}
 
@@ -103,133 +156,115 @@ std::string Expression::getString() {
 	}
 }
 
-Expression * Expression::clone(Scope * parent) {
-	if (type == INTEGER)
-		return new Expression(value, parent);
+expPtr Expression::clone(scpPtr newParent) {
+	if (type == INTEGER) 	return newExp(value, newParent);
+	if (type == VARIABLE)	return newExp(varKey, newParent);
+	if (type == LAMBDA)		return newExp(lambda);
+	if (type == SCOPE)		return newExp(SCOPE, {data[0]->clone(newScp(newParent))}, newParent);
 
-	if (type == VARIABLE)
-		return new Expression(var_key, parent);
-
-	if (type == LAMBDA)
-		return new Expression(lambda);
-
-	if (type == SCOPE)
-	{
-		Scope * ns = new Scope(parent);
-		Expression * c = data[0]->clone(ns);
-		return new Expression(SCOPE, {c}, parent);
-	}
-
-	std::vector<Expression *> newdata;
-	for (auto &e : data)
-		newdata.push_back(e->clone(parent));
-
-	auto r = new Expression(type, newdata, parent);
+	expVec newData;
+	for (expPtr &e : data)	newData.push_back(e->clone(newParent));
+	expPtr r = newExp(type, newData, newParent);
 	r->value = value;
-
 	return r;
 }
 
-void Expression::set(Expression * e){
-	auto c = e->clone(e->parent);
-
-	this->type = c->type;
-	this->data = c->data;
-	this->value = c->value;
-	this->var_key = c->var_key;
-	this->lambda = c->lambda;
+void Expression::set(expPtr e){
+	expPtr c = e->clone(e->parent);
+	shared_from_this()->type = c->type;
+	shared_from_this()->data = c->data;
+	shared_from_this()->value = c->value;
+	shared_from_this()->varKey = c->varKey;
+	shared_from_this()->lambda = c->lambda;
 }
 
-Expression * Expression::evaluate() {
-	//std::cout << " >> " << getString() << std::endl;
+expPtr Expression::evaluate() {
+	//std::cout << getString() << std::endl;
 
 	if (type == LAMBDA_INIT){
-		Expression * exp = data[1];
-		Expression * arg_array = data[0];
-		std::vector<std::string> arg_names;
+		expPtr exp = data[1];
+		expPtr argArray = data[0];
+		strVec argNames;
 
-		for (auto &arg : arg_array->data)
-			arg_names.push_back(arg->var_key);
+		for (expPtr &arg : argArray->data)
+			argNames.push_back(arg->varKey);
 
-		Lambda * l = new Lambda(arg_names, parent);
+		lmbPtr l = newLmb(argNames, parent);
 		l->exp = exp;
 
-		return new Expression(l);
+		return newExp(l);
 	}
 
 	if (type == FUNCTION_INIT){
-		Expression * exp = data[1];
-		Expression * var = data[0]->data[0]->evaluate();
-		Expression * arg_array = data[0]->data[1];
-		std::vector<std::string> arg_names;
+		expPtr exp = data[1];
+		expPtr var = data[0]->data[0]->evaluate();
+		expPtr argArray = data[0]->data[1];
+		strVec argNames;
 
-		for (auto &arg : arg_array->data)
-			arg_names.push_back(arg->var_key);
+		for (expPtr &arg : argArray->data)
+			argNames.push_back(arg->varKey);
 
-		Lambda * l = new Lambda(arg_names, parent);
+		lmbPtr l = newLmb(argNames, parent);
 		l->exp = exp;
 
-		var->set(new Expression(l));
+		var->set(newExp(l));
 
 		return var;
 	}
 
 	if (type == IF_ELSE){
-		Expression * statement = data[0]->evaluate();
+		expPtr statement = data[0]->evaluate();
 		if (statement->approximate() != 0)
 			return data[1]->evaluate();
 		else if (data.size() > 2)
 			return data[2]->evaluate();
 		else
-			return new Expression(0, parent);
+			return newExp(0, parent);
 	}
 
-	if (type == VARIABLE) return parent->getVariable(var_key);
+	if (type == VARIABLE) return parent->getVariable(varKey);
 
-	std::vector<Expression *> newdata;
-	if (type == DO_LOOP)
-	{
-		newdata.push_back(data[0]->evaluate());
-		newdata.push_back(data[1]);
+	expVec newData;
+	if (type == DO_LOOP){
+		newData.push_back(data[0]->evaluate());
+		newData.push_back(data[1]);
 	}else{
-		for (auto &e : data)
-		{
-			Expression * d1 = e->evaluate();
-			if (d1->type == BREAK_MARKER) return d1;
+		for (expPtr &e : data){
+			expPtr d1 = e->evaluate();
+			if (d1->type == RETURN_MARKER && type == EXTERNAL) break;
+			if (d1->type == BREAK_MARKER || d1->type == RETURN_MARKER) return d1;
 			if (type == SEQUENCE && (value == 0 || e->type == RANGE) && d1->type == SEQUENCE && d1->value == 0)
-				newdata.insert(newdata.end(), d1->data.begin(), d1->data.end());
+				newData.insert(newData.end(), d1->data.begin(), d1->data.end());
 			else
-				newdata.push_back(d1);
+				newData.push_back(d1);
 		}
 	}
-	if (type == SEQUENCE)
-	{
-		if (newdata.size() == 1 && value == 0)
-			return newdata[0];
-		auto r = new Expression(SEQUENCE, newdata, parent);
+
+	if (type == SEQUENCE){
+		if (newData.size() == 1 && value == 0)
+			return newData[0];
+		expPtr r = newExp(SEQUENCE, newData, parent);
 		r->value = value;
 		return r;
 	}
 
 	if (type == SET){
-		if (newdata[0]->type == SEQUENCE && newdata[1]->type == SEQUENCE
-			&& newdata[0]->data.size() == newdata[1]->data.size())
+		if (newData[0]->type == SEQUENCE && newData[1]->type == SEQUENCE
+			&& newData[0]->data.size() == newData[1]->data.size())
 		{
-			Expression * temp = newdata[1]->clone(newdata[1]->parent);
-			for (int i = 0; i < newdata[0]->data.size(); i++)
-			{
-				Expression * eval = new Expression(SET, {newdata[0]->data[i], temp->data[i]}, parent);
+			expPtr temp = newData[1]->clone(newData[1]->parent);
+			for (size_t i = 0; i < newData[0]->data.size(); i++){
+				expPtr eval = newExp(SET, {newData[0]->data[i], temp->data[i]}, parent);
 				eval->evaluate();
 			}
-			return newdata[0];
-		}else
-		{
-			newdata[0]->set(newdata[1]);
-			return newdata[0];
+			return newData[0];
+		}else{
+			newData[0]->set(newData[1]);
+			return newData[0];
 		}
 	}
 
-	if (newdata.size() == 2 
+	if (newData.size() == 2 
 		&& type != INDEX
 		&& type != RANGE
 		&& type != EQUAL
@@ -240,293 +275,263 @@ Expression * Expression::evaluate() {
 		&& type != DO_LOOP
 		&& type != LAMBDA_INIT
 		&& type != LAMBDA_RUN
-		&& type != SIZE)
+		&& type != SIZE
+		&& type != CONCAT)
 	{
-		if (newdata[0]->type == SEQUENCE && newdata[1]->type != SEQUENCE){
-			std::vector<Expression *> seq;
-			for (auto &d : newdata[0]->data){
-				Expression * r = new Expression(type, {d, newdata[1]}, parent);
+		if (newData[0]->type == SEQUENCE && newData[1]->type != SEQUENCE){
+			expVec seq;
+			for (expPtr &d : newData[0]->data){
+				expPtr r = newExp(type, {d, newData[1]}, parent);
 				seq.push_back(r->evaluate());
 			}
-			auto r = new Expression(SEQUENCE, seq, parent);
+			expPtr r = newExp(SEQUENCE, seq, parent);
 			r->value = value;
 			return r;
-		} else if (newdata[1]->type == SEQUENCE) {
-			std::vector<Expression *> seq;
-			for (auto &d : newdata[1]->data){
-				Expression * r = new Expression(type, {newdata[0], d}, parent);
+		} else if (newData[1]->type == SEQUENCE) {
+			expVec seq;
+			for (expPtr &d : newData[1]->data){
+				expPtr r = newExp(type, {newData[0], d}, parent);
 				seq.push_back(r->evaluate());
 			}
-			auto r = new Expression(SEQUENCE, seq, parent);
+			expPtr r = newExp(SEQUENCE, seq, parent);
 			r->value = value;
 			return r;
 		}
 	}
 
 	switch(type){
-		case SCOPE:				return newdata[0];
-		case EXTERNAL:			return data[0]->data[0]->parent->getVariable(data[1]->var_key);
-		case ITERATOR:			return new Expression(ITERATOR, {newdata[0], newdata[1]}, parent);
-		case LAMBDA_RUN:		return newdata[0]->lambda->evaluate(newdata[1]->data);
-		case SIZE:				return new Expression(newdata[0]->data.size(), parent);
+		case SCOPE:				return newData[0];
+		case EXTERNAL:			return data[0]->data[0]->parent->getVariable(data[1]->varKey);
+		case ITERATOR:			return newExp(ITERATOR, {newData[0], newData[1]}, parent);
+		case LAMBDA_RUN:		return newData[0]->lambda->evaluate(newData[1]->data);
+		case SIZE:				return newExp(newData[0]->data.size(), parent);
+		case CONCAT:{
+			expVec newseq;
+			for (expPtr &d : newData[0]->data) newseq.push_back(d->clone(parent));
+			for (expPtr &d : newData[1]->data) newseq.push_back(d->clone(parent));
+			expPtr ret = newExp(SEQUENCE, newseq, parent);
+			ret->value = 1;
+			return ret;
+		}
 
-		case ADDITION: 			return addition(newdata[0], newdata[1], parent); 
-		case SUBTRACTION: 		return subtraction(newdata[0], newdata[1], parent);
-		case MULTIPLICATION: 	return multiplication(newdata[0], newdata[1], parent);
-		case DIVISION:		 	return division(newdata[0], newdata[1], parent);
-		case POWER:			 	return power(newdata[0], newdata[1], parent);
-		case ROOT:			 	return root(newdata[0], newdata[1], parent);
-		case LOG:			 	return logar(newdata[0], newdata[1], parent);
+		case ADDITION: 			return addition(newData[0], newData[1], parent); 
+		case SUBTRACTION: 		return subtraction(newData[0], newData[1], parent);
+		case MULTIPLICATION: 	return multiplication(newData[0], newData[1], parent);
+		case DIVISION:		 	return division(newData[0], newData[1], parent);
+		case POWER:			 	return power(newData[0], newData[1], parent);
+		case ROOT:			 	return root(newData[0], newData[1], parent);
+		case LOG:			 	return logar(newData[0], newData[1], parent);
+		case MODULUS:			return newExp((long long)newData[0]->approximate() % (long long)newData[1]->approximate(), parent);
 
-		case LESS:				return new Expression(newdata[0]->approximate() < newdata[1]->approximate(),parent);
-		case ELESS:				return new Expression(newdata[0]->approximate() <= newdata[1]->approximate(),parent);
-		case GREATER:			return new Expression(newdata[0]->approximate() > newdata[1]->approximate(),parent);
-		case EGREATER:			return new Expression(newdata[0]->approximate() >= newdata[1]->approximate(),parent);
-		case EQUAL:				return new Expression(expressionEquals(newdata[0], newdata[1]), parent);
-		case NEQUAL:			return new Expression(!expressionEquals(newdata[0], newdata[1]), parent);
+		case LESS:				return newExp(newData[0]->approximate() < newData[1]->approximate(),parent);
+		case ELESS:				return newExp(newData[0]->approximate() <= newData[1]->approximate(),parent);
+		case GREATER:			return newExp(newData[0]->approximate() > newData[1]->approximate(),parent);
+		case EGREATER:			return newExp(newData[0]->approximate() >= newData[1]->approximate(),parent);
+		case EQUAL:				return newExp(expressionEquals(newData[0], newData[1]), parent);
+		case NEQUAL:			return newExp(!expressionEquals(newData[0], newData[1]), parent);
 
-		case INDEX:
-		{
-			std::vector<Expression*> ls;
-			for (auto &d : newdata[1]->data)
-			{
+		case INDEX:{
+			expVec ls;
+			for (expPtr &d : newData[1]->data){
 				if (d->type == END_MARKER)
-					ls.push_back(newdata[0]->data.back());
-				else
-				{
+					ls.push_back(newData[0]->data.back());
+				else{
 					size_t index_value = d->approximate() - 1;
-
-					if (index_value < 0 || index_value >= newdata[0]->data.size())
+					if (index_value < 0 || index_value >= newData[0]->data.size())
 						throw std::runtime_error("ERROR: Index out of range [" + std::to_string(index_value + 1) + "]");
-
-					ls.push_back(newdata[0]->data[index_value]);
+					ls.push_back(newData[0]->data[index_value]);
 				}
 			}
-			if (ls.size() == 1)
-				return ls[0];
-			else
-				return new Expression(SEQUENCE, ls, parent);
+			if (ls.size() == 1) return ls[0];
+			return newExp(SEQUENCE, ls, parent);
 		}
-		case RANGE:
-		{
-			long long start = newdata[0]->approximate();
-			long long end = newdata[1]->approximate();
+		case RANGE:{
+			rawInt start = newData[0]->approximate();
+			rawInt end = newData[1]->approximate();
 
-			Expression * interval = NULL;
-			if (newdata.size() > 2) interval = newdata[2];
+			expPtr interval = NULL;
+			if (newData.size() > 2) interval = newData[2];
 
-			std::vector<Expression*> ls;
+			expVec ls;
 			if (start < end){
-				for (long long i = start; i <= end; i+=(interval!=NULL ? interval->approximate() : 1))
-					ls.push_back(new Expression(i, parent));
+				if (interval == NULL)
+					interval=newExp(1, parent);
+				expPtr s_e = newData[0]->clone(parent);
+				for (double i = start; i <= end; i+=interval->approximate()){
+					ls.push_back(s_e);
+					expPtr temp = newExp(ADDITION, {s_e, interval}, parent);
+					s_e = temp->evaluate();
+				}
 			}else{
-				for (long long i = start; i >= end; i+=(interval!=NULL ? interval->approximate() : -1))
-					ls.push_back(new Expression(i, parent));
+				if (interval == NULL)
+					interval=newExp(-1, parent);
+				expPtr s_e = newData[0]->clone(parent);
+				for (double i = start; i >= end; i+=interval->approximate()){
+					ls.push_back(s_e);
+					expPtr temp = newExp(ADDITION, {s_e, interval}, parent);
+					s_e = temp->evaluate();
+				}
 			}
 
-			return new Expression(SEQUENCE, ls, parent);
+			return newExp(SEQUENCE, ls, parent);
 		}
-		case DO_LOOP:
-		{
-			std::string varname = data[0]->data[0]->var_key;
-			Expression * array = newdata[0]->data[1];
-			Expression * scope = newdata[1];
+		case DO_LOOP:{
+			string varname = data[0]->data[0]->varKey;
+			expPtr array = newData[0]->data[1];
+			expPtr scope = newData[1];
 
-			for (auto &d : array->data)
-			{
-				parent->getVariable(varname) = d;
-
-				auto s = scope->evaluate();
+			if (array->type != SEQUENCE){
+				parent->getVariable(varname) = array;
+				expPtr s = scope->evaluate();
 				if (s->type == BREAK_MARKER)
-					break;
+					break;				
+			}else{
+				for (expPtr &d : array->data){
+					parent->getVariable(varname) = d;
+					expPtr s = scope->evaluate();
+					if (s->type == BREAK_MARKER)
+						break;
+				}
 			}
-
-			return new Expression(0, parent);
+			return newExp(0, parent);
 		}
 	}
 
-	return this;
+	return shared_from_this();
 }
 
-Expression * convertTokens(Scope * prim, const std::vector<std::string> &tokens, const std::vector<std::string> &operators) {
-	std::vector<Expression*> stack;
+expPtr convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) {
+	expVec stack;
+	scpPtr m = prim;
 
-	Scope * m = prim;
-
-	for (auto &token : tokens) {
+	for (string &token : tokens) {
 		if (token == ",")
 			continue;
-
-		if (isdigit(token[0]))
-			stack.push_back(new Expression(stoll(token), m));
-		else if (token == "true")
-		{
-			stack.push_back(new Expression(1, m));
-		}
-		else if (token == "false")
-		{
-			stack.push_back(new Expression(0, m));
-		}
-		else if (token == "break")
-		{
-			stack.push_back(new Expression(BREAK_MARKER, {}, m));
-		}
+		else if (isdigit(token[0]))
+			stack.push_back(newExp(stoll(token), m));
+		else if (token == "true")	stack.push_back(newExp(1, m));
+		else if (token == "false" || token == "nil")	stack.push_back(newExp(0, m));
+		else if (token == "break")	stack.push_back(newExp(BREAK_MARKER, {}, m));
+		else if (token == "return")	stack.push_back(newExp(RETURN_MARKER, {}, m));
+		else if (token == "~")		stack.push_back(newExp(END_MARKER, {}, m));	
+		else if (token == "(")		stack.push_back(newExp(P_MARKER, {}, m));
+		else if (token == "[")		stack.push_back(newExp(B_MARKER, {}, m));
 		else if (token == "PI" || token == "pi"){
-			Expression * pi_raw = new Expression(DIVISION, {new Expression(355, m), new Expression(113, m)}, m);
-			Expression * pi = new Expression(IMMUTABLE, {pi_raw}, m);
-			pi->var_key = "PI";
+			expPtr pi_raw = newExp(DIVISION, {newExp(355, m), newExp(113, m)}, m);
+			expPtr pi = newExp(IMMUTABLE, {pi_raw}, m);
+			pi->varKey = "PI";
 			stack.push_back(pi);
-		}
-		else if (token == "e"){
-			Expression * e_raw = new Expression(DIVISION, {new Expression(1457, m), new Expression(536, m)}, m);
-			Expression * e = new Expression(IMMUTABLE, {e_raw}, m);
-			e->var_key = "e";
+		}else if (token == "e"){
+			expPtr e_raw = newExp(DIVISION, {newExp(1457, m), newExp(536, m)}, m);
+			expPtr e = newExp(IMMUTABLE, {e_raw}, m);
+			e->varKey = "e";
 			stack.push_back(e);
-		}
-		else if (token == "~")
-		{
-			stack.push_back(new Expression(END_MARKER, {}, m));			
-		}
-		else if (token == "~~")
-		{
-			auto num1 = stack.back();
+		}else if (token == "~~"){
+			expPtr num1 = stack.back();
 			stack.pop_back();
-
-			stack.push_back(new Expression(SUBTRACTION, {new Expression(0, m), num1}, m));			
-		}
-		else if (token == "(")
-		{
-			stack.push_back(new Expression(P_MARKER, {}, m));
-		}
-		else if (token == "[")
-		{
-			stack.push_back(new Expression(B_MARKER, {}, m));
-		}
-		else if (token == "{")
-		{
-			stack.push_back(new Expression(C_MARKER, {}, m));
-			m = new Scope(m);
-		}
-		else if (token == ")")
-		{
-			std::vector<Expression*> ls;
-			while(stack.back()->type != P_MARKER)
-			{
+			stack.push_back(newExp(SUBTRACTION, {newExp(0, m), num1}, m));			
+		}else if (token == "{"){
+			stack.push_back(newExp(C_MARKER, {}, m));
+			m = newScp(m);
+		}else if (token == ")"){
+			expVec ls;
+			while(stack.back()->type != P_MARKER){
 				ls.push_back(stack.back());
 				stack.pop_back();
 			}
 			reverse(ls.begin(), ls.end());
 			stack.pop_back();
-			stack.push_back(new Expression(SEQUENCE, ls, m));
-		}
-		else if (token == "]")
-		{
-			std::vector<Expression*> ls;
-			while(stack.back()->type != B_MARKER)
-			{
+			stack.push_back(newExp(SEQUENCE, ls, m));
+		}else if (token == "]"){
+			expVec ls;
+			while(stack.back()->type != B_MARKER){
 				ls.push_back(stack.back());
 				stack.pop_back();
 			}
 			reverse(ls.begin(), ls.end());
 			stack.pop_back();
-			stack.push_back(new Expression(SEQUENCE, ls, m));
+			stack.push_back(newExp(SEQUENCE, ls, m));
 			stack.back()->value = 1;
-		}
-		else if (token == "}")
-		{
-			std::vector<Expression*> ls;
-			while(stack.back()->type != C_MARKER)
-			{
+		}else if (token == "}"){
+			expVec ls;
+			while(stack.back()->type != C_MARKER){
 				ls.push_back(stack.back());
 				stack.pop_back();
 			}
 			reverse(ls.begin(), ls.end());
 			stack.pop_back();
-
-			Expression * slist = new Expression(SEQUENCE, ls, m);
-
+			expPtr slist = newExp(SEQUENCE, ls, m);
 			m = m->parent;
-			stack.push_back(new Expression(SCOPE, {slist}, m));
-		}
-		else if (token == "#")
-		{
-			auto num1 = stack.back();
+			stack.push_back(newExp(SCOPE, {slist}, m));
+		}else if (token == "#"){
+			expPtr num1 = stack.back();
+			stack.pop_back();
+			stack.push_back(newExp(SIZE, {num1}, m));
+		}else if (find(operators.begin(), operators.end(), token) != operators.end()){
+			expPtr num2 = stack.back();
+			stack.pop_back();
+			expPtr num1 = stack.back();
 			stack.pop_back();
 
-			stack.push_back(new Expression(SIZE, {num1}, m));
-		}
-		else if (find(operators.begin(), operators.end(), token) != operators.end())
-		{
-			auto num2 = stack.back();
-			stack.pop_back();
-			auto num1 = stack.back();
-			stack.pop_back();
-
-			if (token == "+")		stack.push_back(new Expression(ADDITION, {num1, num2}, m));
-			else if (token == "-")	stack.push_back(new Expression(SUBTRACTION, {num1, num2}, m));
-			else if (token == "*") 	stack.push_back(new Expression(MULTIPLICATION, {num1, num2}, m));
-			else if (token == "/") 	stack.push_back(new Expression(DIVISION, {num1, num2}, m));
-			else if (token == "^")	stack.push_back(new Expression(POWER, {num1, num2}, m));
-			else if (token == "rt")	stack.push_back(new Expression(ROOT, {num1, num2}, m));
-			else if (token == "log")	stack.push_back(new Expression(LOG, {num1, num2}, m));
-			else if (token == "=")	stack.push_back(new Expression(SET, {num1, num2}, m));
+			if (token == "+")			stack.push_back(newExp(ADDITION, {num1, num2}, m));
+			else if (token == "-")		stack.push_back(newExp(SUBTRACTION, {num1, num2}, m));
+			else if (token == "*") 		stack.push_back(newExp(MULTIPLICATION, {num1, num2}, m));
+			else if (token == "/") 		stack.push_back(newExp(DIVISION, {num1, num2}, m));
+			else if (token == "%") 		stack.push_back(newExp(MODULUS, {num1, num2}, m));
+			else if (token == "^")		stack.push_back(newExp(POWER, {num1, num2}, m));
+			else if (token == "rt")		stack.push_back(newExp(ROOT, {num1, num2}, m));
+			else if (token == "log")	stack.push_back(newExp(LOG, {num1, num2}, m));
+			else if (token == "=")		stack.push_back(newExp(SET, {num1, num2}, m));
+			else if (token == "++")		stack.push_back(newExp(CONCAT, {num1, num2}, m));
+			else if (token == "##")		stack.push_back(newExp(INDEX, {num1, num2}, m));
+			else if (token == "<")		stack.push_back(newExp(LESS, {num1, num2}, m));
+			else if (token == "<=")		stack.push_back(newExp(ELESS, {num1, num2}, m));
+			else if (token == ">")		stack.push_back(newExp(GREATER, {num1, num2}, m));
+			else if (token == ">=")		stack.push_back(newExp(EGREATER, {num1, num2}, m));
+			else if (token == "==")		stack.push_back(newExp(EQUAL, {num1, num2}, m));
+			else if (token == "!=")		stack.push_back(newExp(NEQUAL, {num1, num2}, m));
+			else if (token == ">>")		stack.push_back(newExp(EXTERNAL, {num1, num2}, m));
+			else if (token == "from")	stack.push_back(newExp(EXTERNAL, {num2, num1}, m));
+			else if (token == "<<")		stack.push_back(newExp(ITERATOR, {num1, num2}, m));
+			else if (token == "in")		stack.push_back(newExp(ITERATOR, {num1, num2}, m));
+			else if (token == "do")		stack.push_back(newExp(DO_LOOP, {num1, num2}, m));
+			else if (token == "=>")		stack.push_back(newExp(FUNCTION_INIT, {num1, num2}, m));
+			else if (token == "->")		stack.push_back(newExp(LAMBDA_INIT, {num1, num2}, m));
+			else if (token == "then")	stack.push_back(newExp(IF_ELSE, {num1, num2}, m));
 			else if (token == ":")	{
 				if (num1->type == RANGE){
 					num1->data.push_back(num2);
 					stack.push_back(num1);
 				}else
-					stack.push_back(new Expression(RANGE, {num1, num2}, m));
-			}
-			else if (token == "else") {
+					stack.push_back(newExp(RANGE, {num1, num2}, m));
+			}else if (token == "else") {
 				num1->data.push_back(num2);
 				stack.push_back(num1);
-			}
-			else if (token == "##")	stack.push_back(new Expression(INDEX, {num1, num2}, m));
-			else if (token == "<")	stack.push_back(new Expression(LESS, {num1, num2}, m));
-			else if (token == "<=")	stack.push_back(new Expression(ELESS, {num1, num2}, m));
-			else if (token == ">")	stack.push_back(new Expression(GREATER, {num1, num2}, m));
-			else if (token == ">=")	stack.push_back(new Expression(EGREATER, {num1, num2}, m));
-			else if (token == "==")	stack.push_back(new Expression(EQUAL, {num1, num2}, m));
-			else if (token == "!=")	stack.push_back(new Expression(NEQUAL, {num1, num2}, m));
-			else if (token == ">>")	stack.push_back(new Expression(EXTERNAL, {num1, num2}, m));
-			else if (token == "from")	stack.push_back(new Expression(EXTERNAL, {num2, num1}, m));
-			else if (token == "<<")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
-			else if (token == "in")	stack.push_back(new Expression(ITERATOR, {num1, num2}, m));
-			else if (token == "do")	stack.push_back(new Expression(DO_LOOP, {num1, num2}, m));
-			else if (token == "=>")	stack.push_back(new Expression(FUNCTION_INIT, {num1, num2}, m));
-			else if (token == "->")	stack.push_back(new Expression(LAMBDA_INIT, {num1, num2}, m));
-			else if (token == "then")	stack.push_back(new Expression(IF_ELSE, {num1, num2}, m));
-			else if (token == "!!")	{
+			}else if (token == "!!")	{
 				num2->value = 1;
-				stack.push_back(new Expression(LAMBDA_RUN, {num1, num2}, m));
+				stack.push_back(newExp(LAMBDA_RUN, {num1, num2}, m));
 			}
 		}else
-		{
-			stack.push_back(new Expression(token,m));
-		}
+			stack.push_back(newExp(token,m));
 	}
 
-	return new Expression(SEQUENCE, stack, m);
+	return newExp(SEQUENCE, stack, m);
 }
 
-bool expressionEquals(Expression * a, Expression * b){
+bool expressionEquals(expPtr a, expPtr b){
 	return a->getString() == b->getString();
 }
 
-long long gcd(long long a, long long b)
-{
+rawInt gcd(rawInt a, rawInt b){
 	if (b == 0) return a;
 	return gcd(b, a % b);
 }
 
-std::vector<long long> factor(long long n, long long fac)
-{
-	std::vector<long long> factors;
+std::vector<rawInt> factor(rawInt n, rawInt fac){
+	std::vector<rawInt> factors;
 
-	for (long long i = n; i > 1; i--)
-	{
-		if (double_equals(std::pow(i, 1.0 / (double)fac), std::round(std::pow(i, 1.0 / (double)fac))) && (n % i == 0))
-		{
+	for (rawInt i = n; i > 1; i--){
+		if (double_equals(std::pow(i, 1.0 / (double)fac), std::round(std::pow(i, 1.0 / (double)fac))) && (n % i == 0)){
 			factors.push_back(i);
 			n = n / i;
 			i = n;
@@ -536,25 +541,20 @@ std::vector<long long> factor(long long n, long long fac)
 	return factors;
 }
 
-bool double_equals(double a, double b, double epsilon)
-{
+bool double_equals(double a, double b, double epsilon){
 	return std::abs(a - b) < epsilon;
 }
 
-std::vector<long long> primeFactors(long long n)
-{
-	std::vector<long long> output;
+std::vector<rawInt> primeFactors(rawInt n){
+	std::vector<rawInt> output;
 
-	while (n % 2 == 0)
-	{
+	while (n % 2 == 0){
 		output.push_back(2);
 		n = n / 2;
 	}
 
-	for (int i = 3; i <= sqrt(n); i = i + 2)
-	{
-		while (n%i == 0)
-		{
+	for (rawInt i = 3; i <= sqrt(n); i = i + 2){
+		while (n%i == 0){
 			output.push_back(i);
 			n = n / i;
 		}
