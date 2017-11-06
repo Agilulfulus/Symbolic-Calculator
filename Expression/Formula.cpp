@@ -1,6 +1,6 @@
 #include "Expression.h"
 
-expPtr addition(expPtr a, expPtr b, scpPtr parent) {
+expPtr addition(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	switch(a->type){
 		case INTEGER:
 		switch(b->type){
@@ -40,7 +40,7 @@ expPtr addition(expPtr a, expPtr b, scpPtr parent) {
 	return newExp(ADDITION, {a, b}, parent);
 }
 
-expPtr subtraction(expPtr a, expPtr b, scpPtr parent) {
+expPtr subtraction(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (expressionEquals(a, b))
 		return newExp(0, parent);
 
@@ -120,7 +120,7 @@ expPtr subtraction(expPtr a, expPtr b, scpPtr parent) {
 	return newExp(SUBTRACTION, {a, b}, parent);
 }
 
-expPtr multiplication(expPtr a, expPtr b, scpPtr parent) {
+expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (double_equals(a->approximate(), 0) || double_equals(b->approximate(), 0))
 		return newExp(0, parent);
 
@@ -219,7 +219,7 @@ expPtr multiplication(expPtr a, expPtr b, scpPtr parent) {
 	return newExp(MULTIPLICATION, {a, b}, parent);
 }
 
-expPtr division(expPtr a, expPtr b, scpPtr parent) {
+expPtr division(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (expressionEquals(a, b)) return newExp(1, parent);
 
 	switch(a->type){
@@ -371,7 +371,7 @@ expPtr division(expPtr a, expPtr b, scpPtr parent) {
 	return newExp(DIVISION, {a, b}, parent);
 }
 
-expPtr power(expPtr a, expPtr b, scpPtr parent) {
+expPtr power(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (double_equals(b->approximate(), 0))
 		return newExp(1, parent);
 	if (double_equals(b->approximate(), 1))
@@ -427,7 +427,7 @@ expPtr power(expPtr a, expPtr b, scpPtr parent) {
 	return newExp(POWER, {a, b}, parent);
 }
 
-expPtr root(expPtr a, expPtr b, scpPtr parent) {
+expPtr root(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (double_equals(b->approximate(), 0))
 		return newExp(0, parent);
 	if (double_equals(b->approximate(), 1))
@@ -446,19 +446,19 @@ expPtr root(expPtr a, expPtr b, scpPtr parent) {
 
 				if (!list.empty())
 				{
-					rawInt newn = 1;
+					rawInt newNumber = 1;
 
 					for (auto &i : list)
 					{
-						newn *= (rawInt)std::round(std::pow(i, 1.0 / (double)root));
+						newNumber *= (rawInt)std::round(std::pow(i, 1.0 / (double)root));
 						num /= i;
 					}
 
 					if (num == 1)
-						return newExp(newn, parent);
+						return newExp(newNumber, parent);
 
 					expPtr r = newExp(ROOT, {newExp(root, parent), newExp(num, parent)}, parent);
-					expPtr t = newExp(MULTIPLICATION, {newExp(newn, parent), r}, parent);
+					expPtr t = newExp(MULTIPLICATION, {newExp(newNumber, parent), r}, parent);
 					return t->evaluate();
 				}
 				break;
@@ -497,7 +497,7 @@ expPtr root(expPtr a, expPtr b, scpPtr parent) {
 	return newExp(ROOT, {a, b}, parent);
 }
 
-expPtr logar(expPtr a, expPtr b, scpPtr parent) {
+expPtr logar(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (b->approximate() <= 0)
 		throw std::runtime_error("ERROR: You cannot take the log of zero or a negative number!");
 	switch(a->type){

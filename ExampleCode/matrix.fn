@@ -1,0 +1,89 @@
+load "ExampleCode/math.fn",
+
+msize(a) => size from {
+    size = 0,
+    n in a do {
+        m in n do {
+            size = size + 1
+        }
+    }
+},
+
+dim(a) => {[#a, #a[1]]},
+
+madd(a, b) => mat from {
+    mat = [],
+    dim(a) != dim(b) then return,
+    [x, y] = dim(a),
+    mat = zero(x, y),
+    i in [1:y] do {
+        j in [1:x] do {
+            mat[i][j] = a[i][j] + b[i][j]
+        }
+    }
+},
+
+msub(a, b) => { madd(a, -b) },
+
+vecmul(a, b) => vec from {
+    vec = [],
+    #a != #b then return,
+    i in [1:#a] do {
+        vec = vec ++ [a[i] * b[i]]
+    }
+},
+
+mmul(a, b) => mat from {
+    mat = [],
+    [x1, y1] = dim(a),
+    [x2, y2] = dim(b),
+    x1 != y2 then return,
+    mat = zeros(x2, y1),
+    i in [1:x2] do {
+        j in [1:y1] do {
+            row = getRow(a, j),
+            col = getCol(b, i),
+            mat[i][j] = sum(vecmul(row, col))
+        }
+    }
+},
+
+det(a) => d from {
+    d = nil,
+    [x, y] = dim(a),
+    x != y then return, 
+    x == 2 then {
+        d = a[1][1] * a[2][2] - a[2][1] * a[1][2],
+        return
+    },
+    i in [1:x] do {
+        scl = a[i][1],
+        subm = [],
+        i == 1 then subm = a[2:x],
+        i == x then subm = a[1:(x - 1)],
+        i > 1 && i < x then subm = a[1:(i - 1), (i + 1):x],
+        j in subm do {
+            j = j[2:#j]
+        },
+        d = d + ((-1)^(i + 1) * det(subm))
+    }
+},
+
+getCol(a, x) => vec from {
+    vec = a[x]
+},
+
+getRow(a, y) => vec from {
+    vec = [],
+    n in a do {
+        vec = vec ++ [n[y]]
+    }
+},
+
+zeros(x, y) => mat from {
+    y == nil then y = x,
+    mat = [1:x] * 0,
+    i in mat do {
+        i = [1:y] * 0
+    }
+}

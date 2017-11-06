@@ -6,8 +6,10 @@
 #include <cmath>
 #include <map>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <memory>
+#include "../Tokenizer/Tokenizer.h"
 
 using std::string;
 
@@ -17,6 +19,7 @@ using std::string;
 struct Expression;
 struct Scope;
 struct Lambda;
+struct Compiler;
 
 typedef std::vector<string> 		strVec;
 typedef std::shared_ptr<Expression>	expPtr;
@@ -85,7 +88,7 @@ struct Expression : std::enable_shared_from_this<Expression>
 	Expression(string, scpPtr);
 	expPtr evaluate();
 	expPtr clone(scpPtr);
-	void set(expPtr);
+	void set(const expPtr&);
 	string getString();
 	double approximate();
 	static long refCount;
@@ -115,14 +118,22 @@ struct Lambda : std::enable_shared_from_this<Lambda>
 	~Lambda();
 };
 
-expPtr convertTokens(scpPtr&, strVec&, strVec&);
-expPtr addition(expPtr, expPtr, scpPtr);
-expPtr subtraction(expPtr, expPtr, scpPtr);
-expPtr multiplication(expPtr, expPtr, scpPtr);
-expPtr division(expPtr, expPtr, scpPtr);
-expPtr power(expPtr, expPtr, scpPtr);
-expPtr root(expPtr, expPtr, scpPtr);
-expPtr logar(expPtr, expPtr, scpPtr);
+struct Compiler
+{
+	scpPtr origin;
+	Compiler();
+	expPtr convertTokens(scpPtr&, strVec&, strVec&);
+	expPtr execute(string line);
+	std::vector<std::string> loadedFiles;
+};
+
+expPtr addition(const expPtr&, const expPtr&, const scpPtr&);
+expPtr subtraction(const expPtr&, const expPtr&, const scpPtr&);
+expPtr multiplication(const expPtr&, const expPtr&, const scpPtr&);
+expPtr division(const expPtr&, const expPtr&, const scpPtr&);
+expPtr power(const expPtr&, const expPtr&, const scpPtr&);
+expPtr root(const expPtr&, const expPtr&, const scpPtr&);
+expPtr logar(const expPtr&, const expPtr&, const scpPtr&);
 
 rawInt gcd(rawInt a, rawInt b);
 std::vector<rawInt> factor(rawInt n, rawInt fac);

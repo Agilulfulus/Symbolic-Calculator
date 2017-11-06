@@ -1,0 +1,23 @@
+quickSort(array, comparator) => array from {
+    #array <= 1 then return,
+    comparator == nil then comparator(x, y) => {x < y},
+    pivot = array[~],
+    lower = upper = [],
+    n in array[1:(#array - 1)] do {
+        comparator(n, pivot) then
+            lower = lower ++ [n]
+        else
+            upper = upper ++ [n]
+    },
+    array = quickSort(lower, comparator) ++ [pivot] ++ quickSort(upper, comparator)
+},
+
+bubbleSort(array) => array from {
+    n in array do {
+        i in [1:(#array - 1)] do {
+            array[i] > array[i + 1] then {
+                array[i, i + 1] = array[i + 1, i]
+            }
+        }
+    }
+}

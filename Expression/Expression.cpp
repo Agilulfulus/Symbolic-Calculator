@@ -169,7 +169,7 @@ expPtr Expression::clone(scpPtr newParent) {
 	return r;
 }
 
-void Expression::set(expPtr e){
+void Expression::set(const expPtr &e){
 	expPtr c = e->clone(e->parent);
 	shared_from_this()->type = c->type;
 	shared_from_this()->data = c->data;
@@ -400,7 +400,7 @@ expPtr Expression::evaluate() {
 	return shared_from_this();
 }
 
-expPtr convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) {
+expPtr Compiler::convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) {
 	expVec stack;
 	scpPtr m = prim;
 
@@ -409,6 +409,23 @@ expPtr convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) {
 			continue;
 		else if (isdigit(token[0]))
 			stack.push_back(newExp(stoll(token), m));
+		else if (token == "load"){
+			string filename = stack.back()->varKey;
+			string line;
+			string totalCode = "";
+			std::ifstream newCode (filename);
+			if (newCode.is_open()){
+				while ( getline (newCode,line) )
+					totalCode+=line;
+				newCode.close();
+			}
+			if (std::find(loadedFiles.begin(), loadedFiles.end(), totalCode) == loadedFiles.end()){
+				execute(totalCode);
+				loadedFiles.push_back(totalCode);
+			}
+			
+			stack.pop_back();
+		}
 		else if (token == "true")	stack.push_back(newExp(1, m));
 		else if (token == "false" || token == "nil")	stack.push_back(newExp(0, m));
 		else if (token == "break")	stack.push_back(newExp(BREAK_MARKER, {}, m));
@@ -511,6 +528,8 @@ expPtr convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) {
 				num2->value = 1;
 				stack.push_back(newExp(LAMBDA_RUN, {num1, num2}, m));
 			}
+		}else if (token[0] == '$'){
+			stack.push_back(newExp(token.substr(1), m));
 		}else
 			stack.push_back(newExp(token,m));
 	}
@@ -564,4 +583,84 @@ std::vector<rawInt> primeFactors(rawInt n){
 		output.push_back(n);
 
 	return output;
+}
+
+Compiler::Compiler(){
+	origin = newScp();
+}
+
+expPtr Compiler::execute(string line){
+	std::vector<std::string> operators = {
+        "+","-","*","/","%","^","rt","log",
+        "++","--",",",
+        "+=","-=","*=","/=","%=","^=",
+        "=","==","!=","<",">","<=",">=",
+        "||","&&", ":","?",
+        "<<", ">>", "**", "->", "=>",
+        "::", "##", "!!", "#",
+        "~~", "do", "from", "in","then","else",
+        "load"
+    };
+
+	std::map<std::string, int> precedence =
+    {
+        { "load", -1},
+        
+        //Grouping
+        { "!!", 11 },
+        { "##", 11 },
+        { "::", 11 },
+        { "->", 1 },
+        { "#", 10 },
+        { ":", 9 },
+    
+        //Arithmetic
+        { "~~", 10 },
+        { "++", 6 },
+        { "rt", 5 },
+        { "log", 5 },
+        { "`", 5 },
+        { "^", 5 },
+        { "*", 4 },
+        { "/", 4 },
+        { "%", 4 },
+        { "+", 3 },
+        { "-", 3 },
+        { ">>", 2 },
+        { "from", 2},
+        { "<<", 2 },
+        { "in", 2 },
+    
+        //Boolean
+        { "<=", 2 },
+        { ">=", 2 },
+        { "<", 2 },
+        { ">", 2 },
+        { "==", 1 },
+        { "!=", 1 },
+        { "||", 0 },
+        { "&&", 0 },
+    
+        //Allocation
+        { "=", -1 },
+        { "=>", -1 },
+        { "^=", -1 },
+        { "*=", -1 },
+        { "/=", -1 },
+        { "%=", -1 },
+        { "+=", -1 },
+        { "-=", -1 },
+    
+        //Seperation
+        { "then", -2},
+        { "do", -2 },
+        { "else", -3},
+        { ",", -4 }
+	};
+
+	auto tokens = tokenize(line, operators);
+	auto postfix = infixToPostfix(tokens, operators, precedence);
+	auto e = convertTokens(origin, postfix, operators);
+
+	return e->evaluate();
 }
