@@ -1,8 +1,9 @@
 quickSort(array, comparator) => array from {
     #array <= 1 then return,
     comparator == nil then comparator(x, y) => {x < y},
-    pivot = array[~],
-    lower = upper = [],
+    local pivot = array[~],
+    local lower = [],
+    local upper = [],
     n in array[1:(#array - 1)] do {
         comparator(n, pivot) then
             lower = lower ++ [n]

@@ -1,0 +1,8 @@
+system(a) => __send(0, a),
+
+print(a) => __send(1, a),
+printl(a) => __send(1, a, "\n"),
+
+instr() => __send(2)[1],
+
+innum() => num(instr())

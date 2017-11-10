@@ -17,15 +17,18 @@ Scope::~Scope(){
 	refCount--;
 }
 
-expPtr& Scope::getVariable(string key){
+expPtr& Scope::getVariable(string key, int forceLocal){
 	scpPtr cur = shared_from_this();
-	while (cur != NULL){
-		if (cur->variables.find(key) != cur->variables.end())
-			break;
-		cur = cur->parent;
+	if (forceLocal == 0)
+	{
+		while (cur != NULL){
+			if (cur->variables.find(key) != cur->variables.end())
+				break;
+			cur = cur->parent;
+		}
 	}
 
-	if (cur == NULL){
+	if (forceLocal == 1 || cur == NULL){
 		variables[key] = newExp(0, shared_from_this());
 		return variables[key];
 	}else

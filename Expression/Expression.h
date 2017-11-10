@@ -27,8 +27,10 @@ typedef std::shared_ptr<Scope>		scpPtr;
 typedef std::shared_ptr<Lambda>		lmbPtr;
 typedef std::vector<expPtr> 		expVec;
 typedef long long 					rawInt;
+typedef std::vector<rawInt>			vecLLI;
 
 enum Type {
+	CHARDEC,
 	INTEGER,
 	VARIABLE,
 	SEQUENCE,
@@ -62,6 +64,10 @@ enum Type {
 	IF_ELSE,
 	SIZE,
 	CONCAT,
+	SEND_FUNC,
+	TO_NUM,
+	RANDOM,
+	STR_CAT,
 
 //MARKERS
 	P_MARKER,
@@ -75,23 +81,24 @@ enum Type {
 
 struct Expression : std::enable_shared_from_this<Expression> 
 {
-	Type type;
-	rawInt value = 0;
-	lmbPtr lambda = NULL;
-	string varKey;
-	expVec data;
-	scpPtr parent;
 	Expression();
 	Expression(lmbPtr);
 	Expression(rawInt, scpPtr);
 	Expression(Type, expVec, scpPtr);
 	Expression(string, scpPtr);
-	expPtr evaluate();
-	expPtr clone(scpPtr);
-	void set(const expPtr&);
-	string getString();
-	double approximate();
+	expPtr 		evaluate();
+	expPtr 		clone(scpPtr);
+	void 		set(const expPtr&);
+	string 		getString();
+	double 		approximate();
 	static long refCount;
+	Type 		type;
+	rawInt 		value = 0;
+	lmbPtr 		lambda = NULL;
+	string 		varKey;
+	expVec 		data;
+	scpPtr 		parent;
+	bool		isIntegral();
 	~Expression();
 };
 
@@ -101,7 +108,7 @@ struct Scope : std::enable_shared_from_this<Scope>
 	std::map<string, expPtr> variables;
 	Scope();
 	Scope(scpPtr);
-	expPtr& getVariable(string);
+	expPtr& getVariable(string, int);
 	static long refCount;
 	~Scope();
 };
@@ -120,11 +127,12 @@ struct Lambda : std::enable_shared_from_this<Lambda>
 
 struct Compiler
 {
+	static strVec (*_send)(strVec&);
 	scpPtr origin;
-	Compiler();
+	Compiler(strVec (*_send)(strVec&));
 	expPtr convertTokens(scpPtr&, strVec&, strVec&);
 	expPtr execute(string line);
-	std::vector<std::string> loadedFiles;
+	strVec loadedFiles;
 };
 
 expPtr addition(const expPtr&, const expPtr&, const scpPtr&);
@@ -135,11 +143,11 @@ expPtr power(const expPtr&, const expPtr&, const scpPtr&);
 expPtr root(const expPtr&, const expPtr&, const scpPtr&);
 expPtr logar(const expPtr&, const expPtr&, const scpPtr&);
 
-rawInt gcd(rawInt a, rawInt b);
-std::vector<rawInt> factor(rawInt n, rawInt fac);
-bool expressionEquals(expPtr a, expPtr b);
-bool double_equals(double a, double b, double epsilon = 0.00000001);
-std::vector<rawInt> primeFactors(rawInt n);
+rawInt	gcd(rawInt a, rawInt b);
+vecLLI	factor(rawInt n, rawInt fac);
+bool 	expressionEquals(expPtr a, expPtr b);
+bool 	double_equals(double a, double b, double epsilon = 0.00000001);
+vecLLI	primeFactors(rawInt n);
 
 expPtr newExp();
 expPtr newExp(lmbPtr);

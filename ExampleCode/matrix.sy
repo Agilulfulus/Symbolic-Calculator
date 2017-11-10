@@ -1,4 +1,4 @@
-load "ExampleCode/math.fn",
+load "ExampleCode/math.sy",
 
 msize(a) => size from {
     size = 0,

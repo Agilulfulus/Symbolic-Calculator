@@ -2,9 +2,9 @@
 
 expPtr addition(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 			return newExp(a->value + b->value, parent);
 			default:
 			return addition(b, a, parent);
@@ -45,9 +45,9 @@ expPtr subtraction(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 		return newExp(0, parent);
 
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 			return newExp(a->value - b->value, parent);
 			case DIVISION:
 			{
@@ -125,9 +125,9 @@ expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 		return newExp(0, parent);
 
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 			return newExp(a->value * b->value, parent);
 			default:
 			{
@@ -188,7 +188,7 @@ expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 		}
 		case ROOT:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 				if (b->value == 1) return a;
 				return newExp(MULTIPLICATION, {a, b}, parent);
 			case DIVISION:
@@ -221,11 +221,13 @@ expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 
 expPtr division(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (expressionEquals(a, b)) return newExp(1, parent);
+	if (double_equals(b->approximate(), 0))
+		throw std::runtime_error("ERROR: Division by zero is undefined.");
 
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 			{
 				rawInt div = gcd(a->value, b->value);
 				expPtr num = newExp(a->value / div, parent);
@@ -240,12 +242,12 @@ expPtr division(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 				if (a->value == 1)
 					return newExp(DIVISION, {a, b}, parent);
 
-				if (b->data[0]->type == INTEGER && gcd(a->value, b->data[0]->value) > 1){
+				if (b->data[0]->isIntegral() && gcd(a->value, b->data[0]->value) > 1){
 					expPtr frac_a = newExp(DIVISION, {a, b->data[0]}, parent);
 					expPtr frac_b = newExp(DIVISION, {newExp(1, parent), b->data[1]}, parent);
 					expPtr res = newExp(MULTIPLICATION, {frac_a, frac_b}, parent);
 					return res->evaluate();
-				}else if (b->data[1]->type == INTEGER && gcd(a->value, b->data[1]->value) > 1){
+				}else if (b->data[1]->isIntegral() && gcd(a->value, b->data[1]->value) > 1){
 					expPtr frac_a = newExp(DIVISION, {newExp(1,parent), b->data[0]}, parent);
 					expPtr frac_b = newExp(DIVISION, {a, b->data[1]}, parent);
 					expPtr res = newExp(MULTIPLICATION, {frac_a, frac_b}, parent);
@@ -275,25 +277,25 @@ expPtr division(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 					expPtr b_1 = b->data[0];
 					expPtr b_2 = b->data[1];
 
-					if ((a_1->type == INTEGER && b_1->type == INTEGER && gcd(a_1->value, b_1->value) > 1)
+					if ((a_1->isIntegral() && b_1->isIntegral() && gcd(a_1->value, b_1->value) > 1)
 						|| expressionEquals(a_1, b_1)){
 						expPtr frac_a = newExp(DIVISION, {a_1, b_1}, parent);
 						expPtr frac_b = newExp(DIVISION, {a_2, b_2}, parent);
 						expPtr res = newExp(MULTIPLICATION, {frac_a, frac_b}, parent);
 						return res->evaluate();
-					} else if ((a_1->type == INTEGER && b_2->type == INTEGER && gcd(a_1->value, b_2->value) > 1)
+					} else if ((a_1->isIntegral() && b_2->isIntegral() && gcd(a_1->value, b_2->value) > 1)
 						|| expressionEquals(a_1, b_2)){
 						expPtr frac_a = newExp(DIVISION, {a_1, b_2}, parent);
 						expPtr frac_b = newExp(DIVISION, {a_2, b_1}, parent);
 						expPtr res = newExp(MULTIPLICATION, {frac_a, frac_b}, parent);
 						return res->evaluate();
-					} else if ((a_2->type == INTEGER && b_1->type == INTEGER && gcd(a_2->value, b_1->value) > 1)
+					} else if ((a_2->isIntegral() && b_1->isIntegral() && gcd(a_2->value, b_1->value) > 1)
 						|| expressionEquals(a_2, b_1)){
 						expPtr frac_a = newExp(DIVISION, {a_2, b_1}, parent);
 						expPtr frac_b = newExp(DIVISION, {a_1, b_2}, parent);
 						expPtr res = newExp(MULTIPLICATION, {frac_a, frac_b}, parent);
 						return res->evaluate();
-					} else if ((a_2->type == INTEGER && b_2->type == INTEGER && gcd(a_2->value, b_2->value) > 1)
+					} else if ((a_2->isIntegral() && b_2->isIntegral() && gcd(a_2->value, b_2->value) > 1)
 						|| expressionEquals(a_2, b_2)){
 						expPtr frac_a = newExp(DIVISION, {a_2, b_2}, parent);
 						expPtr frac_b = newExp(DIVISION, {a_1, b_1}, parent);
@@ -307,13 +309,13 @@ expPtr division(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 					expPtr a_1 = a->data[0];
 					expPtr a_2 = a->data[1];
 
-					if ((a_1->type == INTEGER && b->type == INTEGER && gcd(a_1->value, b->value) > 1)
+					if ((a_1->isIntegral() && b->isIntegral() && gcd(a_1->value, b->value) > 1)
 						|| expressionEquals(a_1, b)){
 						expPtr frac_a = newExp(DIVISION, {a_1, b}, parent);
 						expPtr frac_b = a_2;
 						expPtr res = newExp(MULTIPLICATION, {frac_a, frac_b}, parent);
 						return res->evaluate();
-					} else if ((a_2->type == INTEGER && b->type == INTEGER && gcd(a_2->value, b->value) > 1)
+					} else if ((a_2->isIntegral() && b->isIntegral() && gcd(a_2->value, b->value) > 1)
 						|| expressionEquals(a_2, b)){
 						expPtr frac_a = newExp(DIVISION, {a_2, b}, parent);
 						expPtr frac_b = a_1;
@@ -380,9 +382,9 @@ expPtr power(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 		return newExp(1, parent);
 
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER: return newExp(std::pow(a->value, b->value), parent);
+			case INTEGER: case CHARDEC: return newExp(std::pow(a->value, b->value), parent);
 			case DIVISION:
 			{			
 				expPtr power = newExp(POWER, {a, b->data[0]}, parent);
@@ -433,12 +435,12 @@ expPtr root(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (double_equals(b->approximate(), 1))
 		return newExp(1, parent);
 	if (b->approximate() < 0)
-		throw std::runtime_error("ERROR: You cannot take the root of a negative number!");
+		throw std::runtime_error("ERROR: You cannot take the root of a negative number.");
 
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 			{
 				auto num = b->value;
 				auto root = a->value;
@@ -499,11 +501,11 @@ expPtr root(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 
 expPtr logar(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (b->approximate() <= 0)
-		throw std::runtime_error("ERROR: You cannot take the log of zero or a negative number!");
+		throw std::runtime_error("ERROR: You cannot take the log of zero or a negative number.");
 	switch(a->type){
-		case INTEGER:
+		case INTEGER: case CHARDEC:
 		switch(b->type){
-			case INTEGER:
+			case INTEGER: case CHARDEC:
 			{
 				rawInt num = a->value;
 				rawInt base = b->value;

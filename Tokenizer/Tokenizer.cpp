@@ -9,6 +9,7 @@ std::vector<std::string> tokenize(
     bool mode = true;
     char inQuotes = 0;
     int newMode;
+    char lastchar = '\0';
     for (const char &c : str) {
         // First sections checks whether the current character is a quotation 
         // mark, either " or '
@@ -16,8 +17,28 @@ std::vector<std::string> tokenize(
             if (c == inQuotes) {
                 stack.push_back("");
                 inQuotes = 0;
-            } else
-                stack.back().push_back(c);
+            } else{
+                if (lastchar == '\\'){
+                    stack.back().pop_back();
+                    switch(c){
+                        case 'n':
+                        stack.back().push_back('\n');
+                        break;
+                        case 't':
+                        stack.back().push_back('\t');
+                        break;
+                        case '0':
+                        stack.back().push_back('\0');
+                        break;
+                        case '\\':
+                        stack.back().push_back('\\');
+                        break;
+                    }
+                }else
+                    stack.back().push_back(c);
+            }
+
+            lastchar = c;
             continue;
         } else {
             if (c == '\"' || c == '\'') {
@@ -26,6 +47,8 @@ std::vector<std::string> tokenize(
                 else
                     stack.push_back("`");
                 inQuotes = c;
+
+                lastchar = c;
                 continue;
             }
         }
@@ -45,6 +68,7 @@ std::vector<std::string> tokenize(
             stack.back().push_back(c);
 
         mode = newMode;
+        lastchar = c;
     }
 
     // Erase all empty items

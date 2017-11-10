@@ -1,0 +1,20 @@
+load "term.sy",
+
+hilo(min, max) => correct from {
+    printl(" Welcome to HiLo!"),
+    printl("------------------"),
+    local correct = rand([min:max]),
+    local guess = -1,
+
+    guess != correct do {
+        print("Enter a guess: "),
+        guess = innum(),
+        guess < correct then printl("Higher!"),
+        guess > correct then printl("Lower!")
+    },
+
+    printl("You guessed correctly!"),
+    printl("The answer was " .. correct)
+},
+
+hilo(1,100)

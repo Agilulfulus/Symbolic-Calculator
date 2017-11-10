@@ -1,9 +1,9 @@
 CC=g++
 
-all: Calculator.exe TokenTesting.exe
+all: symc.exe TokenTesting.exe
 
-Calculator.exe: Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o
-	${CC} -g -std=gnu++11 Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o -o Calculator.exe
+symc.exe: Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o
+	${CC} -g -std=gnu++11 Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o -o symc.exe
 
 Main.o: Main.cpp
 	${CC} -c -std=gnu++11 Main.cpp

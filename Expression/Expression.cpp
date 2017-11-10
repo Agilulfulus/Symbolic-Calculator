@@ -1,6 +1,7 @@
 #include "Expression.h"
 
 long Expression::refCount = 0;
+strVec (* Compiler::_send)(strVec&) = NULL;
 
 expPtr newExp(){
 	return std::make_shared<Expression>(
@@ -81,8 +82,9 @@ Expression::~Expression(){
 
 double Expression::approximate(){
 	switch(type){
-		case VARIABLE:			return parent->getVariable(varKey)->approximate();
+		case VARIABLE:			return parent->getVariable(varKey, (int)value)->approximate();
 		case INTEGER:			return value;
+		case CHARDEC:			return value;
 		case SET:				return evaluate()->approximate();
 		case ADDITION:			return data[0]->approximate() + data[1]->approximate();
 		case SUBTRACTION:		return data[0]->approximate() - data[1]->approximate();
@@ -105,10 +107,12 @@ double Expression::approximate(){
 
 string Expression::getString() {
 	switch(type){
+		case CHARDEC:			return string(1, (char)value);
 		case ADDITION:			return "( " + data[0]->getString() + " + " + data[1]->getString() + " )";
 		case BREAK_MARKER:		return "break";
 		case RETURN_MARKER:		return "return";
 		case CONCAT:			return "( " + data[0]->getString() + " ++ " + data[1]->getString() + " )";
+		case STR_CAT:			return "( " + data[0]->getString() + " .. " + data[1]->getString() + " )";
 		case DIVISION:			return "( " + data[0]->getString() + " / " + data[1]->getString() + " )";
 		case MODULUS:			return "( " + data[0]->getString() + " % " + data[1]->getString() + " )";
 		case DO_LOOP:			return "( " + data[0]->getString() + " do " + data[1]->getString() + " )";
@@ -139,18 +143,28 @@ string Expression::getString() {
 		case SIZE:				return "( #" + data[0]->getString() + " )";
 		case SUBTRACTION:		return "( " + data[0]->getString() + " - " + data[1]->getString() + " )";
 		case VARIABLE:			return varKey;
+		case SEND_FUNC:			return "__send(" + data[0]->getString() + ")";
+		case TO_NUM:			return "num(" + data[0]->getString() + ")";
 		case SEQUENCE:
 		{
-			if (data.empty()) return "[]";
-			string r = "[ " + data[0]->getString();
+			if (value == 2){
+				string r = "";
+				for (auto &d : data)
+					r += (char)d->value;
+				return r;
+			}else{
+				if (data.empty()) return "[]";
+				string r = "[ " + data[0]->getString();
 
-			for (size_t i = 1; i < data.size(); i++)
-			{
-				expPtr d = data[i];
-				r += ", " + d->getString();
+				for (size_t i = 1; i < data.size(); i++)
+				{
+					expPtr d = data[i];
+					r += ", " + d->getString();
+				}
+
+				return r + " ]";
 			}
 
-			return r + " ]";
 		}
 		default: return "NULL";
 	}
@@ -158,7 +172,11 @@ string Expression::getString() {
 
 expPtr Expression::clone(scpPtr newParent) {
 	if (type == INTEGER) 	return newExp(value, newParent);
-	if (type == VARIABLE)	return newExp(varKey, newParent);
+	if (type == VARIABLE)	{
+		auto e = newExp(varKey, newParent);
+		e->value = value;
+		return e;
+	}
 	if (type == LAMBDA)		return newExp(lambda);
 	if (type == SCOPE)		return newExp(SCOPE, {data[0]->clone(newScp(newParent))}, newParent);
 
@@ -222,7 +240,7 @@ expPtr Expression::evaluate() {
 			return newExp(0, parent);
 	}
 
-	if (type == VARIABLE) return parent->getVariable(varKey);
+	if (type == VARIABLE) return parent->getVariable(varKey, (int)value);
 
 	expVec newData;
 	if (type == DO_LOOP){
@@ -276,7 +294,8 @@ expPtr Expression::evaluate() {
 		&& type != LAMBDA_INIT
 		&& type != LAMBDA_RUN
 		&& type != SIZE
-		&& type != CONCAT)
+		&& type != CONCAT
+		&& type != STR_CAT)
 	{
 		if (newData[0]->type == SEQUENCE && newData[1]->type != SEQUENCE){
 			expVec seq;
@@ -301,10 +320,16 @@ expPtr Expression::evaluate() {
 
 	switch(type){
 		case SCOPE:				return newData[0];
-		case EXTERNAL:			return data[0]->data[0]->parent->getVariable(data[1]->varKey);
+		case EXTERNAL:			return data[0]->data[0]->parent->getVariable(data[1]->varKey, 0);
 		case ITERATOR:			return newExp(ITERATOR, {newData[0], newData[1]}, parent);
-		case LAMBDA_RUN:		return newData[0]->lambda->evaluate(newData[1]->data);
+		case LAMBDA_RUN:{
+			if (newData[0]->lambda == NULL)
+				throw std::runtime_error("ERROR: Function requested is either undeclared or not lambda type.");
+			return newData[0]->lambda->evaluate(newData[1]->data);
+		}		
 		case SIZE:				return newExp(newData[0]->data.size(), parent);
+		case TO_NUM:			return newExp(std::stoi(newData[0]->data[0]->getString()), parent);
+
 		case CONCAT:{
 			expVec newseq;
 			for (expPtr &d : newData[0]->data) newseq.push_back(d->clone(parent));
@@ -312,6 +337,28 @@ expPtr Expression::evaluate() {
 			expPtr ret = newExp(SEQUENCE, newseq, parent);
 			ret->value = 1;
 			return ret;
+		}
+
+		case STR_CAT:{
+			string s1 = newData[0]->getString();
+			string s2 = newData[1]->getString();
+
+			expVec ls;
+			for (auto &c : s1){
+				ls.push_back(
+					newExp((rawInt)c, parent)
+				);
+				ls.back()->type = CHARDEC;
+			}
+			for (auto &c : s2){
+				ls.push_back(
+					newExp((rawInt)c, parent)
+				);
+				ls.back()->type = CHARDEC;
+			}
+			expPtr nd = newExp(SEQUENCE, ls, parent);
+			nd->value = 2;
+			return nd;
 		}
 
 		case ADDITION: 			return addition(newData[0], newData[1], parent); 
@@ -329,7 +376,31 @@ expPtr Expression::evaluate() {
 		case EGREATER:			return newExp(newData[0]->approximate() >= newData[1]->approximate(),parent);
 		case EQUAL:				return newExp(expressionEquals(newData[0], newData[1]), parent);
 		case NEQUAL:			return newExp(!expressionEquals(newData[0], newData[1]), parent);
+		case RANDOM:			return newData[0]->data[0]->data[(int)(((double)rand() / (double)RAND_MAX) * (double)newData[0]->data[0]->data.size())];
 
+		case SEND_FUNC:{
+			if (Compiler::_send == NULL)
+				throw std::runtime_error("ERROR: No reference to a _send function. This is a compiler error.");
+
+			strVec input;
+			for (auto &d : newData[0]->data)
+				input.push_back(d->getString());
+			
+			auto output = Compiler::_send(input);
+			expVec ls1;
+			for (auto &s : output){
+				expVec ls;
+				for (auto &c : s){
+					ls.push_back(
+						newExp((rawInt)c, parent)
+					);
+					ls.back()->type = CHARDEC;
+				}
+				ls1.push_back(newExp(SEQUENCE, ls, parent));
+				ls1.back()->value = 2;
+			}
+			return newExp(SEQUENCE, ls1, parent);
+		}
 		case INDEX:{
 			expVec ls;
 			for (expPtr &d : newData[1]->data){
@@ -376,18 +447,29 @@ expPtr Expression::evaluate() {
 			return newExp(SEQUENCE, ls, parent);
 		}
 		case DO_LOOP:{
-			string varname = data[0]->data[0]->varKey;
-			expPtr array = newData[0]->data[1];
-			expPtr scope = newData[1];
+			if (newData[0]->type == ITERATOR){
+				string varname = data[0]->data[0]->varKey;
+				expPtr array = newData[0]->data[1];
+				expPtr scope = newData[1];
 
-			if (array->type != SEQUENCE){
-				parent->getVariable(varname) = array;
-				expPtr s = scope->evaluate();
-				if (s->type == BREAK_MARKER)
-					break;				
+				if (array->type != SEQUENCE){
+					parent->getVariable(varname, 1) = array;
+					expPtr s = scope->evaluate();
+					if (s->type == BREAK_MARKER)
+						break;				
+				}else{
+					for (expPtr &d : array->data){
+						parent->getVariable(varname, 1) = d;
+						expPtr s = scope->evaluate();
+						if (s->type == BREAK_MARKER)
+							break;
+					}
+				}
 			}else{
-				for (expPtr &d : array->data){
-					parent->getVariable(varname) = d;
+				expPtr cond = data[0];
+				expPtr scope = newData[1];
+
+				while(!double_equals(cond->evaluate()->approximate(), 0)){
 					expPtr s = scope->evaluate();
 					if (s->type == BREAK_MARKER)
 						break;
@@ -410,7 +492,7 @@ expPtr Compiler::convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) 
 		else if (isdigit(token[0]))
 			stack.push_back(newExp(stoll(token), m));
 		else if (token == "load"){
-			string filename = stack.back()->varKey;
+			string filename = stack.back()->getString();
 			string line;
 			string totalCode = "";
 			std::ifstream newCode (filename);
@@ -484,6 +566,9 @@ expPtr Compiler::convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) 
 			expPtr num1 = stack.back();
 			stack.pop_back();
 			stack.push_back(newExp(SIZE, {num1}, m));
+		}else if (token == "local"){
+			expPtr num1 = stack.back();
+			num1->value = 1;
 		}else if (find(operators.begin(), operators.end(), token) != operators.end()){
 			expPtr num2 = stack.back();
 			stack.pop_back();
@@ -500,6 +585,7 @@ expPtr Compiler::convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) 
 			else if (token == "log")	stack.push_back(newExp(LOG, {num1, num2}, m));
 			else if (token == "=")		stack.push_back(newExp(SET, {num1, num2}, m));
 			else if (token == "++")		stack.push_back(newExp(CONCAT, {num1, num2}, m));
+			else if (token == "..")		stack.push_back(newExp(STR_CAT, {num1, num2}, m));
 			else if (token == "##")		stack.push_back(newExp(INDEX, {num1, num2}, m));
 			else if (token == "<")		stack.push_back(newExp(LESS, {num1, num2}, m));
 			else if (token == "<=")		stack.push_back(newExp(ELESS, {num1, num2}, m));
@@ -526,10 +612,25 @@ expPtr Compiler::convertTokens(scpPtr &prim, strVec &tokens, strVec &operators) 
 				stack.push_back(num1);
 			}else if (token == "!!")	{
 				num2->value = 1;
-				stack.push_back(newExp(LAMBDA_RUN, {num1, num2}, m));
+				if (num1->varKey == "__send")
+					stack.push_back(newExp(SEND_FUNC, {num2}, m));
+				else if (num1->varKey == "num")
+					stack.push_back(newExp(TO_NUM, {num2}, m));
+				else if (num1->varKey == "rand")
+					stack.push_back(newExp(RANDOM, {num2}, m));
+				else
+					stack.push_back(newExp(LAMBDA_RUN, {num1, num2}, m));
 			}
 		}else if (token[0] == '$'){
-			stack.push_back(newExp(token.substr(1), m));
+			expVec ls;
+			for (auto &c : token.substr(1)){
+				ls.push_back(
+					newExp((rawInt)c, m)
+				);
+				ls.back()->type = CHARDEC;
+			}
+			stack.push_back(newExp(SEQUENCE, ls, m));
+			stack.back()->value = 2;
 		}else
 			stack.push_back(newExp(token,m));
 	}
@@ -560,6 +661,11 @@ std::vector<rawInt> factor(rawInt n, rawInt fac){
 	return factors;
 }
 
+bool Expression::isIntegral(){
+	return type == INTEGER
+	|| type == CHARDEC;
+}
+
 bool double_equals(double a, double b, double epsilon){
 	return std::abs(a - b) < epsilon;
 }
@@ -585,28 +691,30 @@ std::vector<rawInt> primeFactors(rawInt n){
 	return output;
 }
 
-Compiler::Compiler(){
+Compiler::Compiler(strVec (*_send)(strVec&)){
 	origin = newScp();
+	this->_send = _send;
 }
 
 expPtr Compiler::execute(string line){
 	std::vector<std::string> operators = {
         "+","-","*","/","%","^","rt","log",
-        "++","--",",",
+        "++","--",",","..",
         "+=","-=","*=","/=","%=","^=",
         "=","==","!=","<",">","<=",">=",
         "||","&&", ":","?",
         "<<", ">>", "**", "->", "=>",
         "::", "##", "!!", "#",
         "~~", "do", "from", "in","then","else",
-        "load"
+        "load", "local"
     };
 
 	std::map<std::string, int> precedence =
     {
         { "load", -1},
         
-        //Grouping
+		//Grouping
+		{ "local", 12},
         { "!!", 11 },
         { "##", 11 },
         { "::", 11 },
@@ -616,7 +724,8 @@ expPtr Compiler::execute(string line){
     
         //Arithmetic
         { "~~", 10 },
-        { "++", 6 },
+		{ "++", 6 },
+		{ "..", 3 },
         { "rt", 5 },
         { "log", 5 },
         { "`", 5 },
