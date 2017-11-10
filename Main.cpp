@@ -64,8 +64,9 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
     Compiler * c = new Compiler(&_send);
     if ( argc != 2 ){
-        std::cout << "Symbolic Calculator (Terminal Interface)" << std::endl;
+        std::cout << "Symbolic Calculator (Terminal Interface - term.sy)" << std::endl;
         std::cout << "To execute a file, do 'symc <filename>'" << std::endl;
+        c->execute("load \"term.sy\"");
         std::string line;
         while(true) {
             std::cout << "\n>>> ";
