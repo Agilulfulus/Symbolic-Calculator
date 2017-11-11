@@ -123,6 +123,8 @@ expPtr subtraction(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 	if (double_equals(a->approximate(), 0) || double_equals(b->approximate(), 0))
 		return newExp(0, parent);
+	if (expressionEquals(a, b) && (a->type != INTEGER && a->type != CHARDEC))
+		return newExp(POWER, {a, newExp(2, parent)}, parent);
 
 	switch(a->type){
 		case INTEGER: case CHARDEC:
@@ -160,6 +162,8 @@ expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 		case MULTIPLICATION:
 		{
 			expPtr n1 = newExp(MULTIPLICATION, {a->data[1], b}, parent);
+			if (expressionEquals(n1->evaluate(), n1))
+				return newExp(MULTIPLICATION, {a, b}, parent);
 			expPtr n2 = newExp(MULTIPLICATION, {a->data[0], n1}, parent);
 			return n2->evaluate();
 		}
@@ -191,6 +195,10 @@ expPtr multiplication(const expPtr &a, const expPtr &b, const scpPtr &parent) {
 			case INTEGER: case CHARDEC:
 				if (b->value == 1) return a;
 				return newExp(MULTIPLICATION, {a, b}, parent);
+			case MULTIPLICATION:
+			{
+				return newExp(MULTIPLICATION, {newExp(MULTIPLICATION, {a, b->data[0]}, parent), b->data[1]}, parent)->evaluate();
+			}
 			case DIVISION:
 			{				
 				auto num_a = a;

@@ -25,7 +25,7 @@ fib(limit) => array from {
 enum COMMANDS {
     SYSTEM = 0,
     PRINT,
-    INPUT_STRING
+    INPUT
 };
 
 std::vector<std::string> _send(std::vector<std::string> &input){
@@ -48,7 +48,7 @@ std::vector<std::string> _send(std::vector<std::string> &input){
             }
             break;
         }
-        case INPUT_STRING:
+        case INPUT:
         {
             std::string line;
             std::getline(std::cin, line);
@@ -83,7 +83,6 @@ int main(int argc, char *argv[]) {
         }
     }else{
         expPtr e = c->execute("load \"" + std::string(argv[1]) + "\"");
-        //std::cout << "\n\t" << e->getString() << std::endl;
     }
     c->_send = NULL;
     delete c;

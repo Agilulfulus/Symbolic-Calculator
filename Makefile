@@ -2,8 +2,8 @@ CC=g++
 
 all: symc.exe TokenTesting.exe
 
-symc.exe: Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o
-	${CC} -g -std=gnu++11 Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o -o symc.exe
+symc.exe: Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Main.o Compiler.o
+	${CC} -g -std=gnu++11 Tokenizer.o Expression.o Formula.o Scope.o Lambda.o Compiler.o Main.o -o symc.exe
 
 Main.o: Main.cpp
 	${CC} -c -std=gnu++11 Main.cpp
@@ -19,6 +19,9 @@ Expression.o: Expression/Expression.cpp Expression/Expression.h
 
 Scope.o: Expression/Scope.cpp Expression/Expression.h
 	${CC} -c -std=gnu++11 Expression/Scope.cpp
+
+Compiler.o: Expression/Compiler.cpp Expression/Expression.h
+	${CC} -c -std=gnu++11 Expression/Compiler.cpp
 
 Formula.o: Expression/Formula.cpp Expression/Expression.h
 	${CC} -c -std=gnu++11 Expression/Formula.cpp
